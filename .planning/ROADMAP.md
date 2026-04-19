@@ -1,44 +1,50 @@
 # Roadmap
 
-Five phases, executed in order. Each phase has its own doc under
-[phases/](phases/) with concrete tasks and acceptance criteria.
+Five phases, executed in order. Each has its own doc under [phases/](phases/)
+with concrete tasks and acceptance criteria.
 
-Phases are finished when acceptance criteria pass — no "90% done, moving on."
+A phase is finished when **every** acceptance criterion passes — no
+"90% done, moving on."
 
 ---
 
-## Phase 1 — Rock-solid bootstrap
-**Goal:** the existing `deploy.sh` becomes trustworthy and idempotent.
+## Phase 1 — Bootstrap `install.sh`
+**Goal:** a single curl-pipe-bash command takes a fresh Ubuntu/Debian
+server to a running Claude+Telegram assistant in under 3 minutes,
+end-to-end, with as little operator interaction as possible.
 
-- Fix known bugs (auth-check, `'skip'` prompt, token overwrite)
-- Input validation (token format, user ID, workspace name)
-- Dry-run mode
-- Local log file per deploy
-- `doctor.sh` — diagnose a half-broken install
+This phase **builds `install.sh` from scratch** in the new target-side
+model. The legacy `deploy.sh` (SSH-from-laptop) is retired.
+
+Includes: project structure, conventions doc, ADRs for the major
+choices, robust install script with preflight, validation, idempotency,
+inline linger handling, logging, dry-run, and verification.
 
 → [phase-1-bootstrap.md](phases/phase-1-bootstrap.md)
 
 ---
 
-## Phase 2 — Cross-platform install UX
-**Goal:** one command works from Windows (Git Bash), macOS, Linux, WSL.
+## Phase 2 — Distribution
+**Goal:** the install command is a real curl-able URL, not "git clone first."
 
-- Test matrix: Git Bash, WSL, macOS zsh/bash, Ubuntu bash
-- One-liner installer (`curl ... | bash`)
-- README rewritten for non-technical operator
-- Pre-flight compatibility checks
+- Repo flips from private to public
+- Stable install URL — either `raw.githubusercontent.com/didi6135/Claudify/main/install.sh` or a custom domain like `claudify.sh`
+- Versioned releases (git tags + GitHub releases)
+- `install.sh` accepts `CLAUDIFY_VERSION=v1.0.0` to pin
+- README first instruction is the curl command, full stop
 
-→ phases/phase-2-cross-platform.md *(to be written)*
+→ phases/phase-2-distribution.md *(to be written)*
 
 ---
 
-## Phase 3 — Lifecycle scripts
-**Goal:** running an assistant over months, not just deploying once.
+## Phase 3 — Lifecycle
+**Goal:** running an assistant for months, not just installing it once.
 
-- `update.sh` — Claude Code, plugins, MCPs
+- `update.sh` — Claude Code, plugins, MCPs, Claudify itself
 - `backup.sh` / `restore.sh` — `~/.claude`, workspaces, memories, secrets
 - `uninstall.sh` — clean removal
-- Scheduled auto-update opt-in
+- `doctor.sh` — already in Phase 1, but expanded here
+- Optional auto-update on a cron
 
 → phases/phase-3-lifecycle.md *(to be written)*
 
@@ -47,10 +53,10 @@ Phases are finished when acceptance criteria pass — no "90% done, moving on."
 ## Phase 4 — Capabilities expansion
 **Goal:** ship as a *full* assistant, not just Telegram.
 
-- Gmail MCP (OAuth flow handled in deploy)
+- Gmail MCP (OAuth flow handled in install)
 - Google Calendar MCP
 - Google Drive MCP
-- settings.json with sensible permissions policy
+- `settings.json` with sensible permissions policy
 - Multi-workspace support (work / personal / learning)
 - User-level `CLAUDE.md` seeded from `who-am-i.md`
 
@@ -62,15 +68,29 @@ Phases are finished when acceptance criteria pass — no "90% done, moving on."
 **Goal:** safe to leave running unattended.
 
 - Secret manager upgrade (move off plain `.env` to age/sops)
-- Cost ceiling — hard cutoff when daily $ threshold hit
+- Cost ceiling — hard cutoff at $X/day
 - Audit log — every command the assistant ran
-- Health check — external ping can verify alive-and-responsive
+- Health check — external ping verifies alive-and-responsive
 - Permission policy — what the assistant is / isn't allowed to do
 
 → phases/phase-5-security.md *(to be written)*
 
 ---
 
+## Out of roadmap (intentionally)
+
+These are things we **could** build but won't — they conflict with the
+project's vision (see [PROJECT.md](PROJECT.md) non-goals):
+
+- Operator-side CLI for managing many servers from one laptop
+- A hosted SaaS version of Claudify
+- Web/mobile UI alternatives to Telegram
+- Multi-tenant deployments (multiple users sharing one assistant)
+
+If a real need emerges, revisit by writing an ADR proposing the change.
+
+---
+
 ## Progress tracking
-Current phase: **Phase 1** (planning → execution).
-See [phases/phase-1-bootstrap.md](phases/phase-1-bootstrap.md).
+Current phase: **Phase 1** — building `install.sh`.
+Open tasks tracked in [phases/phase-1-bootstrap.md](phases/phase-1-bootstrap.md).

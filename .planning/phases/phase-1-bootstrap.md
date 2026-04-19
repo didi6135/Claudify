@@ -1,105 +1,169 @@
-# Phase 1 — Rock-solid bootstrap
+# Phase 1 — Bootstrap `install.sh`
 
-**Status:** planning
-**Goal:** `deploy.sh` is trustworthy, idempotent, debuggable.
+**Status:** in progress
+**Goal:** one curl command, run on the target server, takes Ubuntu/Debian
+to a running Claude+Telegram assistant in under 3 minutes.
 
 ---
 
-## Scope
-This phase is about hardening what already exists. No new features, no new
-channels, no new MCPs. Just making the current bootstrap bulletproof.
+## End-state target
 
-## Why this phase first
-Every other phase builds on top of `deploy.sh`. If it's flaky, every
-phase after it inherits the flakiness. Fix the foundation first.
+```bash
+ssh you@your-server.com
+curl -fsSL https://claudify.sh/install | bash
+# (one sudo prompt for linger, one OAuth pause for Claude — that's it)
+# < 3 minutes later: bot is alive
+```
+
+Subsequent re-runs of the same command are safe and complete in
+< 60 seconds (no auth pause, no sudo, no destructive overwrites).
+
+## Context — what changed from the original plan
+
+The original Phase 1 was "fix the bugs in `deploy.sh`." But `deploy.sh`
+implements the *wrong model* — operator-side SSH push from a laptop. We
+pivoted to the standard self-hosted-tool install pattern (`curl … | bash`
+on the target). See ADR 0004 for the decision.
+
+This means Phase 1 is no longer a refactor. It's **a fresh build of
+`install.sh`** with all the quality concerns from the original Phase 1
+baked in from line one. `deploy.sh` moves to `legacy/` as a reference,
+not a starting point.
 
 ---
 
 ## Tasks
 
-### 1.1 — Fix the auth verification bug
-**Problem:** [deploy.sh:202-203](../../deploy.sh#L202-L203) greps for
-`"loggedIn": true` from `claude auth status` output. That command does not
-emit JSON by default, so the grep always fails → user sees a spurious
-warning even on successful auth.
-**Action:** verify the real output format on a live server, then rewrite the
-check using the correct marker. Fall back to a clear message if Claude Code
-changes the format.
+Grouped into three sub-phases. Within each group, tasks can be tackled
+in any order; between groups, do them in sequence.
 
-### 1.2 — Make the `'skip'` prompt actually skip
-**Problem:** [deploy.sh:199](../../deploy.sh#L199) prompts *"ENTER when done,
-or 'skip' if already authenticated"*, but the `$skip` variable is read and
-discarded — the auth check runs regardless.
-**Action:** honor `skip` input (bypass the verification and service start?
-or just the verification?). Decide semantics, then implement.
+### 1.A — Foundation (do first)
 
-### 1.3 — Idempotent secret & config writes
-**Problem:** `.env` and `access.json` are overwritten every deploy. Any
-manual edits (extra allowlist entries, added env vars) are lost on
-re-deploy.
-**Action:** if files exist, preserve them unless user passes
-`--force-reset-config`. Merge new allowlist entry into existing
-`access.json` via `jq` if available.
+**1.A.1 — Folder structure**
+Create the agreed structure: `bin/` (or single `install.sh` for now),
+`lib/`, `remote/`, `templates/`, `docs/`, `.planning/decisions/`. Add a
+short README in each folder explaining what belongs there.
 
-### 1.4 — Input validation
-**Problem:** no sanity check on `BOT_TOKEN` (should match
-`\d+:[A-Za-z0-9_-]+`), `TG_USER_ID` (numeric), or `WORKSPACE` (no spaces,
-no shell metachars).
-**Action:** validate each after collection, re-prompt on bad input.
+**1.A.2 — Conventions doc**
+Write `.planning/conventions.md` covering: bash file headers, naming,
+error handling, logging, ADR format, how to add a Phase task.
 
-### 1.5 — Dry-run mode
-**Problem:** no way to preview what the script will do on the server.
-**Action:** `DRY_RUN=1 ./deploy.sh` prints every remote command instead of
-executing it.
+**1.A.3 — ADRs for decisions already made**
+- `0001-bash-as-implementation-language.md`
+- `0002-systemd-user-service-with-linger.md`
+- `0003-oauth-not-apikey.md`
+- `0004-target-side-curl-install-not-operator-push.md`
 
-### 1.6 — Deploy log file
-**Problem:** when something fails, user has nothing to share for
-troubleshooting.
-**Action:** tee all output to
-`./logs/deploy-<host>-<YYYYMMDD-HHMMSS>.log` automatically, and print the
-log path in the final summary.
+**1.A.4 — Move `deploy.sh` to `legacy/`**
+Don't delete — keep as historical reference. Add `legacy/README.md`
+explaining why.
 
-### 1.7 — `doctor.sh`
-**Problem:** half-broken installs require the user to SSH in and poke
-around manually.
-**Action:** new script that runs remote diagnostics:
-- Is the service running? (`systemctl --user status`)
-- Is Claude authenticated?
-- Is the bot token present and non-empty?
-- Is the allowlist readable?
-- Is `node` / `claude` / `bun` on PATH under systemd?
-- Last 20 lines of journal logs
-Prints a green-or-red check for each, plus next-step hints on red.
+### 1.B — Install logic (do after 1.A)
 
-### 1.8 — Remove dead code
-**Problem:** `TEMPLATES_DIR` declared but unused; Bun installed but not
-required; `templates/` contains files that aren't read.
-**Action:** either wire up `envsubst`-driven template rendering (cleaner)
-or delete the templates folder + unused variables.
+**1.B.1 — `install.sh` skeleton**
+Header comment, `set -euo pipefail`, color helpers, `step/ok/warn/fail`,
+log file (tee to `/tmp/claudify-install-<timestamp>.log`), `--dry-run`
+flag.
+
+**1.B.2 — Stdin handling for `curl | bash`**
+When piped from curl, stdin is the script — `read` won't work. Detect
+this and read prompts from `/dev/tty` instead. Fail clearly if no TTY
+and required values not in env.
+
+**1.B.3 — Preflight checks**
+- OS detection (Ubuntu/Debian supported; warn on others)
+- node + npm present (fail loudly with install instructions if not)
+- `script` binary present (`util-linux`)
+- linger state (auto-handle in 1.B.4)
+- internet connectivity to npm + bun.sh + telegram
+
+**1.B.4 — Inline linger handling**
+Detect via `loginctl show-user "$USER" | grep -q Linger=yes`. If
+missing, prompt the user (`Continue? [Y/n]`), then run
+`sudo loginctl enable-linger "$USER"` natively (sudo prompts in the same
+terminal). On failure: fail loudly.
+
+**1.B.5 — Input collection + validation**
+- `BOT_TOKEN` — env or prompt; validate `^[0-9]+:[A-Za-z0-9_-]+$`
+- `TG_USER_ID` — env or prompt; validate `^[0-9]+$`
+- `WORKSPACE` — env or default `claude-bot`; validate `^[A-Za-z0-9._-]+$`
+- All prompts loop on invalid input with clear "why it's wrong"
+
+**1.B.6 — Package install (idempotent)**
+- Claude Code via `npm install -g @anthropic-ai/claude-code` (skip if present, log skip)
+- (Bun deferred — only install if actually needed; current evidence suggests it isn't)
+- Marketplace registration (skip if already registered)
+- Telegram plugin install (skip if already installed)
+
+**1.B.7 — Idempotent config writes**
+- `~/.claude/channels/telegram/.env` — preserve if exists unless `--reset-config`
+- `~/.claude/channels/telegram/access.json` — if exists and contains current `TG_USER_ID` in `allowFrom`, skip; otherwise merge with `jq`
+
+**1.B.8 — systemd user service**
+Render service file (envsubst on a `.tpl`), write to
+`~/.config/systemd/user/claude-telegram.service`, `daemon-reload`,
+`enable`, but **don't start yet** — wait for OAuth.
+
+**1.B.9 — Interactive OAuth pause**
+Print clear instructions to run `claude setup-token` in the same
+terminal. Wait for user confirmation. After they confirm, verify auth
+works by parsing the *real* `claude auth status` output (Task 1.B.10).
+
+**1.B.10 — Verify auth (parse real output)**
+Run `claude auth status` and check for the actual success marker (we
+need to inspect real output to know what to grep for). If auth missing,
+loop back to 1.B.9 with a clear error.
+
+**1.B.11 — Start service + verify**
+`systemctl --user restart claude-telegram`, sleep 3,
+`systemctl --user is-active`, show last 10 journal lines. On failure:
+print the journalctl command and exit non-zero.
+
+**1.B.12 — Final summary**
+- Bot is running
+- Useful commands (status, logs, stop, restart)
+- Where the install log lives
+- "Send a message to your bot to test"
+
+### 1.C — Quality of life (do alongside 1.B as you go)
+
+**1.C.1 — Install log file**
+`tee` everything to `/tmp/claudify-install-<host>-<YYYYMMDD-HHMMSS>.log`
+from line one. Print the path in the final summary.
+
+**1.C.2 — `--dry-run` mode**
+Print every system-modifying command without executing.
+
+**1.C.3 — `doctor.sh`**
+Separate script for diagnosing a half-broken install:
+- Service status
+- Auth status
+- Token + allowlist files present and well-formed
+- linger enabled
+- node / npm / claude / bun on PATH under systemd
+- Last 20 journal lines
+Each check prints green or red with next-step hints on red.
 
 ---
 
 ## Acceptance criteria
-Phase 1 is done when all of these are true:
-- [ ] `./deploy.sh` runs clean on a fresh VPS with no warnings
-- [ ] Re-running `./deploy.sh` on an already-deployed server is safe and
-      preserves user edits to `access.json` / `.env`
-- [ ] `DRY_RUN=1 ./deploy.sh` works end-to-end
-- [ ] Every deploy produces a timestamped log file locally
-- [ ] `./doctor.sh` correctly reports status on a working and a broken
-      server
-- [ ] No dead code or unreferenced files in the repo
-- [ ] At least one successful real-world deploy using the improved script
+
+Phase 1 is **done** when ALL of these are true:
+
+- [ ] Folder structure agreed and in place; conventions.md + 4 ADRs written
+- [ ] `install.sh` runs clean on a fresh server (Station11 reset to baseline)
+- [ ] `install.sh` re-run on a configured server is safe and ≤ 60s, no destructive overwrites
+- [ ] `install.sh --dry-run` works end-to-end with no remote modifications
+- [ ] Every install produces a timestamped log file at `/tmp/claudify-install-*.log`
+- [ ] `doctor.sh` correctly distinguishes a healthy install from a broken one
+- [ ] No dead code, no unused files, no half-finished functions
+- [ ] At least one successful real-world install on Station11 with a NEW BotFather bot
 
 ---
 
-## Open questions
-- Do we have a test server for real-world verification? *(blocks 1.1 and
-  final acceptance)*
-- Keep `templates/` and use `envsubst`, or delete and inline the heredocs?
-  *(decide during 1.8)*
-
 ## Out of scope for this phase
-- Cross-OS install UX → Phase 2
-- New channels or MCPs → Phase 4
-- Cost tracking, audit log → Phase 5
+
+- Hosting `install.sh` at a public URL → Phase 2 (Distribution)
+- Update / backup / uninstall scripts → Phase 3
+- New channels / MCPs → Phase 4
+- Cost tracking, audit log, secret manager → Phase 5
