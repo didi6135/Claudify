@@ -47,10 +47,12 @@ setup_npm_prefix() {
 
   local rc="$HOME/.bashrc"
   if [[ -f "$rc" ]] && ! grep -q "$NPM_PREFIX/bin" "$rc"; then
-    if [[ "$DRY_RUN" -ne 1 ]]; then
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      echo "  [DRY] append PATH export to $rc"
+    else
       echo "export PATH=\"$NPM_PREFIX/bin:\$PATH\"" >> "$rc"
+      ok "added $NPM_PREFIX/bin to PATH in ~/.bashrc"
     fi
-    ok "added $NPM_PREFIX/bin to PATH in ~/.bashrc"
   fi
 }
 
@@ -65,7 +67,7 @@ install_claude() {
 
   echo "  ↓ npm install -g @anthropic-ai/claude-code"
   run "npm install -g @anthropic-ai/claude-code >/dev/null 2>&1"
-  ok "claude installed: $(claude --version 2>/dev/null | head -1)"
+  ok_done "claude installed: $(claude --version 2>/dev/null | head -1)"
 }
 
 # ─── Telegram plugin ──────────────────────────────────────────────────────
@@ -77,7 +79,7 @@ install_telegram_plugin() {
   else
     echo "  ↓ Adding official marketplace…"
     run "claude plugin marketplace add anthropics/claude-plugins-official >/dev/null 2>&1"
-    ok "marketplace registered"
+    ok_done "marketplace registered"
   fi
 
   if claude plugin list 2>/dev/null | grep -q "telegram.*claude-plugins-official"; then
@@ -85,7 +87,7 @@ install_telegram_plugin() {
   else
     echo "  ↓ Installing telegram plugin…"
     run "claude plugin install telegram@claude-plugins-official >/dev/null 2>&1"
-    ok "telegram plugin installed"
+    ok_done "telegram plugin installed"
   fi
 }
 
@@ -257,8 +259,21 @@ start_service() {
 # ─── Final summary ────────────────────────────────────────────────────────
 final_summary() {
   echo
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    c_yellow "╭────────────────────────────────────────────────────────────╮"
+    banner_line "DRY-RUN complete  —  no changes were made" "\033[33m"
+    c_yellow "╰────────────────────────────────────────────────────────────╯"
+    echo
+    echo "  Re-run without --dry-run to actually install:"
+    echo "      bash install.sh"
+    echo
+    echo "  Dry-run log: $LOG_FILE"
+    echo
+    return
+  fi
+
   c_green "╭────────────────────────────────────────────────────────────╮"
-  c_green "│              Claudify  —  install complete                 │"
+  banner_line "Claudify  —  install complete" "\033[32m"
   c_green "╰────────────────────────────────────────────────────────────╯"
   echo
   echo "  Send a message to your bot on Telegram to test."

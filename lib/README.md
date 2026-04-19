@@ -24,7 +24,7 @@ single self-contained `dist/install.sh`.
 
 | File | Purpose | Exposes |
 |---|---|---|
-| `ui.sh` | colors + status helpers + log file setup | `c_red/green/yellow/cyan/bold`, `step`, `ok`, `warn`, `fail`, `print_banner`, `setup_logging`, `LOG_FILE` |
+| `ui.sh` | colors + status helpers + log file setup | `c_red/green/yellow/cyan/bold`, `step`, `ok`, `ok_done` (dry-run-aware), `warn`, `fail`, `banner_line`, `print_banner`, `setup_logging`, `LOG_FILE` |
 | `args.sh` | CLI flag parsing + dry-run helper | `parse_args`, `show_help`, `run`, `DRY_RUN`, `RESET_CONFIG` |
 | `prompts.sh` | TTY-safe interactive prompts | `detect_tty`, `ask`, `ask_secret`, `ask_validated`, `ask_secret_validated`, `TTY_DEV` |
 | `validate.sh` | input format validators | `validate_bot_token`, `validate_user_id`, `validate_workspace` |
