@@ -126,3 +126,31 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 - Speculative abstractions for hypothetical future cases
 - Catch-all error handlers that hide real failures
 - Premature optimization
+
+---
+
+## Modular bash + single-file distribution
+
+`install.sh` is the user-facing entry point. It exists in two forms:
+
+1. **Source form** (in this repo): a thin orchestrator that
+   `source`s files under `lib/`. Easy to read, edit, and test in
+   isolation.
+2. **Distributed form** (`dist/install.sh`, gitignored): a single
+   self-contained file produced by `bash build.sh`. This is what gets
+   served to users via `curl … | bash`, because curl can only fetch one
+   file.
+
+Rules:
+- Modules under `lib/` **define functions and constants only** —
+  no top-level work, no I/O on source. The orchestrator decides when
+  to invoke setup steps (e.g. `setup_logging` is a function, not a
+  side-effect-on-source).
+- Modules don't `source` each other; only the orchestrator (`install.sh`)
+  sources lib files, in dependency order.
+- Modules don't have their own shebang or `set -euo pipefail`. Those
+  belong on the orchestrator.
+- Every module has a header comment listing its purpose and what it
+  exposes (`Exposes: foo, bar, baz`).
+- Run `bash build.sh` whenever you change anything under `lib/` or
+  `install.sh`. The output `dist/install.sh` must pass `bash -n`.

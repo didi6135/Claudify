@@ -1,0 +1,74 @@
+# lib/prompts.sh — interactive prompts that survive `curl | bash`
+#
+# The challenge: when `bash install.sh` is fed via `curl … | bash`, stdin is
+# the script content, not the keyboard, so plain `read` can't reach the user.
+# We re-route prompts through /dev/tty when piped.
+#
+# Exposes:
+#   detect_tty                                          — sets TTY_DEV
+#   ask          <prompt> <default> <varname>           — visible input
+#   ask_secret   <prompt> <varname>                     — hidden input
+#   ask_validated <prompt> <default> <var> <fn> <hint>  — loop until valid
+#   ask_secret_validated <prompt> <var> <fn> <hint>     — same, hidden
+
+TTY_DEV=""
+
+detect_tty() {
+  if [[ -t 0 ]]; then
+    TTY_DEV=/dev/stdin
+  elif [[ -r /dev/tty && -w /dev/tty ]]; then
+    TTY_DEV=/dev/tty
+  fi
+}
+
+ask() {
+  local prompt="$1" default="${2:-}" varname="$3"
+  local current="${!varname:-}"
+  if [[ -n "$current" ]]; then
+    echo "  $prompt: $current (from env)"
+    return
+  fi
+  [[ -z "$TTY_DEV" ]] && fail "No TTY; set $varname via env var when running non-interactively"
+  local input
+  if [[ -n "$default" ]]; then
+    read -r -p "  $prompt [$default]: " input < "$TTY_DEV"
+    input="${input:-$default}"
+  else
+    read -r -p "  $prompt: " input < "$TTY_DEV"
+  fi
+  printf -v "$varname" '%s' "$input"
+}
+
+ask_secret() {
+  local prompt="$1" varname="$2"
+  local current="${!varname:-}"
+  if [[ -n "$current" ]]; then
+    echo "  $prompt: (from env)"
+    return
+  fi
+  [[ -z "$TTY_DEV" ]] && fail "No TTY; set $varname via env var when running non-interactively"
+  local input
+  read -r -s -p "  $prompt: " input < "$TTY_DEV"
+  echo
+  printf -v "$varname" '%s' "$input"
+}
+
+ask_validated() {
+  local prompt="$1" default="$2" varname="$3" validator="$4" hint="$5"
+  while true; do
+    ask "$prompt" "$default" "$varname"
+    if "$validator" "${!varname}"; then return 0; fi
+    warn "$hint"
+    unset "$varname"
+  done
+}
+
+ask_secret_validated() {
+  local prompt="$1" varname="$2" validator="$3" hint="$4"
+  while true; do
+    ask_secret "$prompt" "$varname"
+    if "$validator" "${!varname}"; then return 0; fi
+    warn "$hint"
+    unset "$varname"
+  done
+}
