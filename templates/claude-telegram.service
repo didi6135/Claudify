@@ -1,0 +1,19 @@
+[Unit]
+Description=Claude Code with Telegram channel ({{WORKSPACE_NAME}})
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=PATH=%h/.bun/bin:%h/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=HOME=%h
+Environment=TERM=xterm-256color
+WorkingDirectory=%h/workspace/{{WORKSPACE_NAME}}
+ExecStart=/usr/bin/script -qfec "claude --channels plugin:telegram@claude-plugins-official" /dev/null
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

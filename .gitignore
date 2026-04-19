@@ -1,0 +1,33 @@
+# Operator-local planning notes — never push
+.planning/LOCAL.md
+
+# Deploy logs (Phase 1.6)
+logs/
+*.log
+
+# Env files — never commit secrets
+.env
+.env.*
+!.env.example
+
+# SSH artifacts (paranoia)
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (future-proofing)
+node_modules/
+npm-debug.log*
