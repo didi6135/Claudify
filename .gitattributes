@@ -1,0 +1,16 @@
+# Normalize all text files to LF internally
+* text=auto eol=lf
+
+# Files that MUST be LF regardless of OS (run on Linux)
+*.sh       text eol=lf
+*.service  text eol=lf
+*.conf     text eol=lf
+Dockerfile text eol=lf
+
+# Files that are always binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
