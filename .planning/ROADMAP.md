@@ -14,7 +14,7 @@ server to a running Claude+Telegram assistant in under 3 minutes,
 end-to-end, with as little operator interaction as possible.
 
 This phase **builds `install.sh` from scratch** in the new target-side
-model. The legacy `deploy.sh` (SSH-from-laptop) is retired.
+model. The original `deploy.sh` (SSH-from-laptop) was retired and removed.
 
 Includes: project structure, conventions doc, ADRs for the major
 choices, robust install script with preflight, validation, idempotency,

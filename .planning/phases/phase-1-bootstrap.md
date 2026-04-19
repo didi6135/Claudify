@@ -27,8 +27,8 @@ on the target). See ADR 0004 for the decision.
 
 This means Phase 1 is no longer a refactor. It's **a fresh build of
 `install.sh`** with all the quality concerns from the original Phase 1
-baked in from line one. `deploy.sh` moves to `legacy/` as a reference,
-not a starting point.
+baked in from line one. `deploy.sh` was removed; git history preserves
+it if anyone needs to look back.
 
 ---
 
@@ -54,9 +54,9 @@ error handling, logging, ADR format, how to add a Phase task.
 - `0003-oauth-not-apikey.md`
 - `0004-target-side-curl-install-not-operator-push.md`
 
-**1.A.4 — Move `deploy.sh` to `legacy/`**
-Don't delete — keep as historical reference. Add `legacy/README.md`
-explaining why.
+**1.A.4 — Remove `deploy.sh`**
+Delete it from the working tree. Git history preserves it if needed.
+(Decided 2026-04-19: keep the working tree focused on the new model.)
 
 ### 1.B — Install logic (do after 1.A)
 

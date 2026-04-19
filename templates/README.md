@@ -14,9 +14,9 @@ writing the rendered file.
 ## Current files
 
 The two files presently in this folder (`access.json` and
-`claude-telegram.service`) are leftover concrete examples from the
-legacy `deploy.sh` flow. They will be converted to `.tpl` form during
-Phase 1 task 1.B.8 (systemd service) and 1.B.7 (config writes).
+`claude-telegram.service`) are concrete examples from the original
+`deploy.sh` flow. They will be converted to `.tpl` form during Phase 1
+task 1.B.8 (systemd service) and 1.B.7 (config writes).
 
 Once converted, expected templates are:
 

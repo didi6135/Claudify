@@ -15,9 +15,9 @@ remote server:
    runs an install script locally. (Examples: Bun, Tailscale, k3s,
    OpenCode, Deno.)
 
-Our original design (`deploy.sh`, see `legacy/`) was operator-side push.
-We pivoted before shipping because the user wanted the familiar Bun /
-OpenCode UX.
+Our original design (`deploy.sh`, removed before shipping — see commit
+history if you want to read it) was operator-side push. We pivoted because
+the user wanted the familiar Bun / OpenCode UX.
 
 ## Decision
 
