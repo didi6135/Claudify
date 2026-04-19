@@ -16,20 +16,87 @@
 
 NPM_PREFIX="$HOME/.npm-global"
 
+# ─── Welcome ──────────────────────────────────────────────────────────────
+intro() {
+  echo
+  echo "  Welcome to Claudify."
+  echo
+  echo "  This installer will:"
+  echo "    1. Verify and install missing system dependencies (Node.js, jq)"
+  echo "    2. Walk you through creating a Telegram bot if you don't have one"
+  echo "    3. Install Claude Code and the official Telegram channel plugin"
+  echo "    4. Configure and start your bot as a systemd service"
+  echo "    5. Pause once for Claude OAuth — log in with your subscription"
+  echo
+  echo "  Estimated time: 3–5 minutes (most of it is the npm install)."
+  echo
+  if [[ "${DRY_RUN:-0}" -ne 1 && -n "$TTY_DEV" ]]; then
+    local _
+    ask "Press ENTER to continue, or Ctrl-C to abort" "" _
+  fi
+}
+
+# ─── Telegram setup walkthroughs ──────────────────────────────────────────
+guide_botfather() {
+  echo
+  c_cyan "  ━ How to create a Telegram bot ━"
+  echo
+  echo "  Open Telegram and chat with BotFather:"
+  echo "      https://t.me/BotFather"
+  echo
+  echo "  Then:"
+  echo "      1. Send: /newbot"
+  echo "      2. Pick a display name (any text — e.g. \"My Claude Assistant\")"
+  echo "      3. Pick a username ending in 'bot' (e.g. \"my_claude_assistant_bot\")"
+  echo "      4. BotFather replies with a token. Copy it. Looks like:"
+  echo "          1234567890:ABCdef-GhIjKlMnOpQrStUvWxYz_12345"
+  echo
+  local _
+  ask "Press ENTER when you have your token" "" _
+}
+
+guide_userinfobot() {
+  echo
+  c_cyan "  ━ How to find your Telegram user ID ━"
+  echo
+  echo "  Only your user ID will be allowed to talk to the bot — nobody else."
+  echo
+  echo "  Open Telegram and chat with userinfobot:"
+  echo "      https://t.me/userinfobot"
+  echo
+  echo "  Then:"
+  echo "      1. Send: /start"
+  echo "      2. Copy the 'Id:' number — digits only (e.g. 7104012252)"
+  echo
+  local _
+  ask "Press ENTER when you have your user ID" "" _
+}
+
 # ─── Inputs ────────────────────────────────────────────────────────────────
 collect_inputs() {
-  step "Configuration"
+  step "Telegram bot setup"
+
+  # Bot token — show walkthrough only if not pre-filled via env.
+  if [[ -z "${BOT_TOKEN:-}" ]]; then
+    guide_botfather
+  fi
   ask_secret_validated \
-    "Telegram bot token (from @BotFather)" \
+    "Paste your Telegram bot token" \
     BOT_TOKEN validate_bot_token \
     "Format: digits, colon, then characters (e.g. 1234567890:ABC-...)"
   ok "bot token format valid"
 
+  # User ID — same pattern.
+  if [[ -z "${TG_USER_ID:-}" ]]; then
+    guide_userinfobot
+  fi
   ask_validated \
-    "Your Telegram user ID (numeric, from @userinfobot)" \
+    "Paste your Telegram user ID (numeric)" \
     "" TG_USER_ID validate_user_id \
     "Must be all digits."
 
+  # Workspace — usually default is fine, no walkthrough.
+  echo
   ask_validated \
     "Workspace folder name" \
     "claude-bot" WORKSPACE validate_workspace \

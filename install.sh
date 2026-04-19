@@ -58,11 +58,13 @@ main() {
     warn "DRY-RUN — no system changes will be made"
   fi
 
+  intro                    # welcome message + ENTER to continue
+
   preflight_os
-  preflight_prereqs
+  preflight_prereqs        # offers to install missing deps (node, jq)
   preflight_linger
 
-  collect_inputs
+  collect_inputs           # walks user through BotFather + userinfobot
 
   install_claude
   install_telegram_plugin
