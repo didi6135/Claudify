@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # claudify install.sh — bootstrap Claude Code + Telegram on this Linux server
 #
-# Usage:
-#   bash install.sh
-#   bash install.sh --dry-run
+# Usage (target server, after SSH'ing in):
+#   curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash -s -- --dry-run
 #   BOT_TOKEN=… TG_USER_ID=… WORKSPACE=… bash install.sh
 #
-# When distributed, this file is the BUILT single-file output of build.sh
-# (concatenates lib/ + this orchestrator). For local development the
-# modular sources under lib/ are used directly via `source` below.
+# When distributed, the BUILT single-file output of build.sh
+# (dist/install.sh) is what users actually fetch. This file (install.sh
+# at the project root) is the modular development form that sources
+# lib/*.sh below.
 #
 # Dependencies on this server:
 #   - bash, coreutils, util-linux (provides /usr/bin/script), curl

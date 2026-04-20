@@ -4,16 +4,16 @@ When the bot isn't responding or the install failed, start here.
 
 ## First step — always
 
-Run the doctor:
+Run the doctor (when it ships in Phase 3 — Lifecycle):
 
 ```bash
-bash <(curl -fsSL https://claudify.sh/doctor)
+bash doctor.sh
 ```
-
-(Or, if you cloned the repo: `./doctor.sh`.)
 
 It checks each component and tells you exactly what's broken and what
 to do about it.
+
+For now, the manual checklist below covers the common cases.
 
 ---
 
