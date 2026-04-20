@@ -235,6 +235,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+# Load CLAUDE_CODE_OAUTH_TOKEN from here. Leading '-' makes it optional
+# so the unit can be written before oauth_setup runs.
+EnvironmentFile=-%h/.claude/credentials.env
 Environment=PATH=%h/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=HOME=%h
 Environment=TERM=xterm-256color
@@ -268,36 +271,73 @@ claude_is_authed() {
   claude auth status 2>&1 | grep -qE '"loggedIn"[[:space:]]*:[[:space:]]*true'
 }
 
+# `claude setup-token` does NOT persist credentials. It generates a
+# long-lived OAuth token, prints it to the terminal, and expects the
+# operator to set CLAUDE_CODE_OAUTH_TOKEN in the environment of whoever
+# runs `claude`. For a systemd-supervised bot that means loading the
+# token from an EnvironmentFile on the unit. Store it here:
+CREDS_FILE="$HOME/.claude/credentials.env"
+
 oauth_setup() {
   step "Authenticate Claude (one-time)"
 
+  # Already authed? Either from a prior install or from CLAUDE_CODE_OAUTH_TOKEN
+  # already in the environment. Don't re-run setup-token.
+  if [[ -s "$CREDS_FILE" ]]; then
+    # shellcheck disable=SC1090
+    set -a; . "$CREDS_FILE"; set +a
+  fi
   if claude_is_authed; then
     ok "Claude is already authenticated"
     return 0
   fi
 
-  c_yellow "  Claude needs a one-time browser login."
-  echo "    A URL will appear below. Open it in any browser, log in to your"
-  echo "    Claude subscription, and the script will continue automatically."
+  c_yellow "  Claude needs a one-time OAuth login."
+  echo "    A URL will appear below. Open it in a browser, log in to your"
+  echo "    Claude subscription, and paste the resulting code back here."
+  echo "    Claudify will then save the long-lived token for the systemd service."
   echo
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] would run: claude setup-token"
+    echo "  [DRY] would write $CREDS_FILE"
     return 0
   fi
 
+  # Run setup-token. Its output is already being tee'd to LOG_FILE by
+  # ui.sh's setup_logging, so the long-lived token ends up captured there.
   if [[ -n "$TTY_DEV" ]]; then
     claude setup-token < "$TTY_DEV" || fail "claude setup-token failed"
   else
     claude setup-token || fail "claude setup-token failed"
   fi
 
+  # Parse the sk-ant-oat01-... token out of the log we just appended to.
+  local token
+  token=$(grep -oE 'sk-ant-oat01-[A-Za-z0-9_-]+' "$LOG_FILE" | tail -1)
+  if [[ -z "$token" ]]; then
+    warn "Couldn't parse a long-lived token from setup-token output."
+    echo "    Look for 'sk-ant-oat01-...' in $LOG_FILE and save it manually:"
+    echo "        echo 'CLAUDE_CODE_OAUTH_TOKEN=<token>' > $CREDS_FILE"
+    echo "        chmod 600 $CREDS_FILE"
+    fail "Auth setup incomplete"
+  fi
+
+  # Persist for systemd (via EnvironmentFile on the unit) and export for
+  # this shell so claude_is_authed can verify.
+  mkdir -p "$(dirname "$CREDS_FILE")"
+  umask 077
+  printf 'CLAUDE_CODE_OAUTH_TOKEN=%s\n' "$token" > "$CREDS_FILE"
+  chmod 600 "$CREDS_FILE"
+  export CLAUDE_CODE_OAUTH_TOKEN="$token"
+  ok "OAuth token saved to $CREDS_FILE (mode 600)"
+
   if claude_is_authed; then
     ok "Claude authenticated"
   else
-    warn "Auth not detected after setup-token. Output:"
+    warn "Token saved but 'claude auth status' still reports not-logged-in:"
     claude auth status 2>&1 | sed 's/^/    /'
-    fail "Re-run install or 'claude setup-token' manually"
+    fail "Unexpected — check $LOG_FILE"
   fi
 }
 
