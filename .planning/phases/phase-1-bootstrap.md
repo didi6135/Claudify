@@ -91,7 +91,10 @@ terminal). On failure: fail loudly.
 
 **1.B.6 — Package install (idempotent)**
 - Claude Code via `npm install -g @anthropic-ai/claude-code` (skip if present, log skip)
-- (Bun deferred — only install if actually needed; current evidence suggests it isn't)
+- **Bun** via `curl -fsSL https://bun.sh/install | bash` — REQUIRED by the
+  telegram plugin's MCP server (`.mcp.json` invokes `bun run start`).
+  Omitting it causes the plugin to silently fail and the bot never polls
+  Telegram. Discovered 2026-04-20 debugging Station11.
 - Marketplace registration (skip if already registered)
 - Telegram plugin install (skip if already installed)
 

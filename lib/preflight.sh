@@ -89,6 +89,39 @@ preflight_prereqs() {
   else
     ok "jq present"
   fi
+
+  # Bun — required by the telegram plugin's MCP server (see its .mcp.json:
+  # command "bun" run start). Without it the plugin silently fails to spawn
+  # and claude --channels runs but never polls Telegram.
+  if ! command -v bun >/dev/null 2>&1; then
+    install_bun
+  fi
+  # Ensure PATH has bun for the rest of this script run
+  export PATH="$HOME/.bun/bin:$PATH"
+  ok "bun $(bun --version 2>/dev/null || echo '?')"
+}
+
+# Install Bun via its official one-liner. User-level install under ~/.bun,
+# no sudo needed. The telegram MCP server depends on this.
+install_bun() {
+  warn "Bun is not installed (required by the Telegram plugin's MCP server)"
+  echo "    Will install Bun via its official one-liner:"
+  echo "        curl -fsSL https://bun.sh/install | bash"
+  echo "    Installs under ~/.bun (no sudo needed)."
+  local yn
+  ask "Install Bun now? [Y/n]" "Y" yn
+  [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without Bun (Telegram plugin requirement)"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [DRY] curl -fsSL https://bun.sh/install | bash"
+    return 0
+  fi
+
+  curl -fsSL https://bun.sh/install | bash >/dev/null 2>&1 \
+    || fail "Bun install failed"
+  export PATH="$HOME/.bun/bin:$PATH"
+  command -v bun >/dev/null 2>&1 || fail "Bun installed but not on PATH — check ~/.bun/bin"
+  ok "Bun $(bun --version) installed"
 }
 
 preflight_linger() {

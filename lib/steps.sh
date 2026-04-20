@@ -238,7 +238,7 @@ Type=simple
 # Load CLAUDE_CODE_OAUTH_TOKEN from here. Leading '-' makes it optional
 # so the unit can be written before oauth_setup runs.
 EnvironmentFile=-%h/.claude/credentials.env
-Environment=PATH=%h/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PATH=%h/.bun/bin:%h/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=HOME=%h
 Environment=TERM=xterm-256color
 WorkingDirectory=%h/workspace/$WORKSPACE
