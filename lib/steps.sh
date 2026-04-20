@@ -30,9 +30,8 @@ intro() {
   echo
   echo "  Estimated time: 3–5 minutes (most of it is the npm install)."
   echo
-  if [[ "${DRY_RUN:-0}" -ne 1 && -n "$TTY_DEV" ]]; then
-    local _
-    ask "Press ENTER to continue, or Ctrl-C to abort" "" _
+  if [[ "${DRY_RUN:-0}" -ne 1 ]]; then
+    wait_enter "Press ENTER to continue, or Ctrl-C to abort"
   fi
 }
 
@@ -51,8 +50,7 @@ guide_botfather() {
   echo "      4. BotFather replies with a token. Copy it. Looks like:"
   echo "          1234567890:ABCdef-GhIjKlMnOpQrStUvWxYz_12345"
   echo
-  local _
-  ask "Press ENTER when you have your token" "" _
+  wait_enter "Press ENTER when you have your token"
 }
 
 guide_userinfobot() {
@@ -68,8 +66,7 @@ guide_userinfobot() {
   echo "      1. Send: /start"
   echo "      2. Copy the 'Id:' number — digits only (e.g. 7104012252)"
   echo
-  local _
-  ask "Press ENTER when you have your user ID" "" _
+  wait_enter "Press ENTER when you have your user ID"
 }
 
 # ─── Inputs ────────────────────────────────────────────────────────────────
@@ -263,10 +260,12 @@ SVC
 }
 
 # ─── Claude OAuth ─────────────────────────────────────────────────────────
-# Permissive grep until we observe real `claude auth status` output during
-# the first end-to-end install (Phase 1 task 1.B.10). Tighten then.
+# `claude auth status` emits JSON like:
+#   {"loggedIn": true, "authMethod": "claude.ai", ...}
+# We match the exact JSON field rather than guessing at phrasing.
+# Verified against Claude Code v2.1.114 on 2026-04-20.
 claude_is_authed() {
-  claude auth status 2>&1 | grep -qiE '(logged.in|authenticated|active|ok)'
+  claude auth status 2>&1 | grep -qE '"loggedIn"[[:space:]]*:[[:space:]]*true'
 }
 
 oauth_setup() {

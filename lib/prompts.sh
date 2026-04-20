@@ -72,3 +72,14 @@ ask_secret_validated() {
     unset "$varname"
   done
 }
+
+# Pause the flow until the user hits ENTER. Any typed input is discarded.
+# This is a pacing pause, not a prompt for a value — so it does NOT go
+# through ask()'s env-var-prefill logic. Using ask() here caused bugs
+# when the throwaway var name collided with bash's special $_ variable.
+wait_enter() {
+  local prompt="${1:-Press ENTER to continue}"
+  [[ -z "$TTY_DEV" ]] && return 0
+  local _input
+  read -r -p "  $prompt: " _input < "$TTY_DEV" || true
+}
