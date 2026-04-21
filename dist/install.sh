@@ -4,7 +4,7 @@
 # THIS FILE IS GENERATED. Do not edit directly.
 # Source:  https://github.com/didi6135/Claudify
 # Edit:    install.sh + lib/*.sh in the source repo, then run `bash build.sh`
-# Built:   2026-04-21T08:01:20Z
+# Built:   2026-04-21T08:11:36Z
 #
 # Usage (on a target Linux server):
 #   curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash
@@ -76,6 +76,7 @@ print_banner() {
 
 DRY_RUN=0
 RESET_CONFIG=0
+NON_INTERACTIVE=0
 
 show_help() {
   cat <<HELP
@@ -85,10 +86,14 @@ Usage:
   bash install.sh [flags]
 
 Flags:
-  --dry-run         Print actions without modifying the system
-  --reset-config    Overwrite existing token/allowlist (default: preserve)
-  --version         Print version and exit
-  --help            Show this help
+  --dry-run           Print actions without modifying the system
+  --reset-config      Overwrite existing token/allowlist (default: preserve)
+  --non-interactive   Skip all "Press ENTER" pauses and confirmation
+                      prompts. Useful for automated tests / CI. Requires
+                      BOT_TOKEN, TG_USER_ID (+ linger already on OR
+                      passwordless sudo).
+  --version           Print version and exit
+  --help              Show this help
 
 Environment (any can be set to skip its prompt):
   BOT_TOKEN         Telegram bot token from @BotFather
@@ -103,11 +108,12 @@ HELP
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --dry-run)      DRY_RUN=1 ;;
-      --reset-config) RESET_CONFIG=1 ;;
-      --version)      echo "claudify $SCRIPT_VERSION"; exit 0 ;;
-      -h|--help)      show_help; exit 0 ;;
-      *)              fail "Unknown flag: $1 (try --help)" ;;
+      --dry-run)         DRY_RUN=1 ;;
+      --reset-config)    RESET_CONFIG=1 ;;
+      --non-interactive) NON_INTERACTIVE=1 ;;
+      --version)         echo "claudify $SCRIPT_VERSION"; exit 0 ;;
+      -h|--help)         show_help; exit 0 ;;
+      *)                 fail "Unknown flag: $1 (try --help)" ;;
     esac
     shift
   done
@@ -252,9 +258,11 @@ offer_apt_install() {
   warn "$desc is missing"
   echo "    Will install via: sudo apt install -y $pkg"
   echo "    (You'll be prompted for your sudo password if not already cached.)"
-  local yn
-  ask "Install $pkg now? [Y/n]" "Y" yn
-  [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without $desc"
+  if [[ "${NON_INTERACTIVE:-0}" -ne 1 ]]; then
+    local yn
+    ask "Install $pkg now? [Y/n]" "Y" yn
+    [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without $desc"
+  fi
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] sudo apt install -y $pkg"
@@ -273,9 +281,11 @@ install_node() {
   echo "        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
   echo "        sudo apt install -y nodejs"
   echo "    You'll be prompted for your sudo password."
-  local yn
-  ask "Install Node.js v22 now? [Y/n]" "Y" yn
-  [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without Node.js"
+  if [[ "${NON_INTERACTIVE:-0}" -ne 1 ]]; then
+    local yn
+    ask "Install Node.js v22 now? [Y/n]" "Y" yn
+    [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without Node.js"
+  fi
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] add NodeSource repo + apt install -y nodejs"
@@ -330,9 +340,11 @@ install_bun() {
   echo "    Will install Bun via its official one-liner:"
   echo "        curl -fsSL https://bun.sh/install | bash"
   echo "    Installs under ~/.bun (no sudo needed)."
-  local yn
-  ask "Install Bun now? [Y/n]" "Y" yn
-  [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without Bun (Telegram plugin requirement)"
+  if [[ "${NON_INTERACTIVE:-0}" -ne 1 ]]; then
+    local yn
+    ask "Install Bun now? [Y/n]" "Y" yn
+    [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without Bun (Telegram plugin requirement)"
+  fi
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] curl -fsSL https://bun.sh/install | bash"
@@ -363,9 +375,13 @@ preflight_linger() {
     return 0
   fi
 
-  local yn
-  ask "Continue and enable linger now? [Y/n]" "Y" yn
-  [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without linger"
+  if [[ "${NON_INTERACTIVE:-0}" -ne 1 ]]; then
+    local yn
+    ask "Continue and enable linger now? [Y/n]" "Y" yn
+    [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without linger"
+  else
+    echo "  (non-interactive: running sudo loginctl enable-linger)"
+  fi
 
   sudo loginctl enable-linger "$USER" || fail "Failed to enable linger"
   ok "linger enabled"
@@ -404,7 +420,7 @@ intro() {
   echo
   echo "  Estimated time: 3–5 minutes (most of it is the npm install)."
   echo
-  if [[ "${DRY_RUN:-0}" -ne 1 ]]; then
+  if [[ "${DRY_RUN:-0}" -ne 1 && "${NON_INTERACTIVE:-0}" -ne 1 ]]; then
     wait_enter "Press ENTER to continue, or Ctrl-C to abort"
   fi
 }

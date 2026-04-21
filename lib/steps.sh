@@ -30,7 +30,7 @@ intro() {
   echo
   echo "  Estimated time: 3–5 minutes (most of it is the npm install)."
   echo
-  if [[ "${DRY_RUN:-0}" -ne 1 ]]; then
+  if [[ "${DRY_RUN:-0}" -ne 1 && "${NON_INTERACTIVE:-0}" -ne 1 ]]; then
     wait_enter "Press ENTER to continue, or Ctrl-C to abort"
   fi
 }

@@ -30,9 +30,11 @@ offer_apt_install() {
   warn "$desc is missing"
   echo "    Will install via: sudo apt install -y $pkg"
   echo "    (You'll be prompted for your sudo password if not already cached.)"
-  local yn
-  ask "Install $pkg now? [Y/n]" "Y" yn
-  [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without $desc"
+  if [[ "${NON_INTERACTIVE:-0}" -ne 1 ]]; then
+    local yn
+    ask "Install $pkg now? [Y/n]" "Y" yn
+    [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without $desc"
+  fi
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] sudo apt install -y $pkg"
@@ -51,9 +53,11 @@ install_node() {
   echo "        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
   echo "        sudo apt install -y nodejs"
   echo "    You'll be prompted for your sudo password."
-  local yn
-  ask "Install Node.js v22 now? [Y/n]" "Y" yn
-  [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without Node.js"
+  if [[ "${NON_INTERACTIVE:-0}" -ne 1 ]]; then
+    local yn
+    ask "Install Node.js v22 now? [Y/n]" "Y" yn
+    [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without Node.js"
+  fi
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] add NodeSource repo + apt install -y nodejs"
@@ -108,9 +112,11 @@ install_bun() {
   echo "    Will install Bun via its official one-liner:"
   echo "        curl -fsSL https://bun.sh/install | bash"
   echo "    Installs under ~/.bun (no sudo needed)."
-  local yn
-  ask "Install Bun now? [Y/n]" "Y" yn
-  [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without Bun (Telegram plugin requirement)"
+  if [[ "${NON_INTERACTIVE:-0}" -ne 1 ]]; then
+    local yn
+    ask "Install Bun now? [Y/n]" "Y" yn
+    [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without Bun (Telegram plugin requirement)"
+  fi
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] curl -fsSL https://bun.sh/install | bash"
@@ -141,9 +147,13 @@ preflight_linger() {
     return 0
   fi
 
-  local yn
-  ask "Continue and enable linger now? [Y/n]" "Y" yn
-  [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without linger"
+  if [[ "${NON_INTERACTIVE:-0}" -ne 1 ]]; then
+    local yn
+    ask "Continue and enable linger now? [Y/n]" "Y" yn
+    [[ "$yn" =~ ^[Nn] ]] && fail "Cannot proceed without linger"
+  else
+    echo "  (non-interactive: running sudo loginctl enable-linger)"
+  fi
 
   sudo loginctl enable-linger "$USER" || fail "Failed to enable linger"
   ok "linger enabled"

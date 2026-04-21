@@ -8,6 +8,7 @@
 
 DRY_RUN=0
 RESET_CONFIG=0
+NON_INTERACTIVE=0
 
 show_help() {
   cat <<HELP
@@ -17,10 +18,14 @@ Usage:
   bash install.sh [flags]
 
 Flags:
-  --dry-run         Print actions without modifying the system
-  --reset-config    Overwrite existing token/allowlist (default: preserve)
-  --version         Print version and exit
-  --help            Show this help
+  --dry-run           Print actions without modifying the system
+  --reset-config      Overwrite existing token/allowlist (default: preserve)
+  --non-interactive   Skip all "Press ENTER" pauses and confirmation
+                      prompts. Useful for automated tests / CI. Requires
+                      BOT_TOKEN, TG_USER_ID (+ linger already on OR
+                      passwordless sudo).
+  --version           Print version and exit
+  --help              Show this help
 
 Environment (any can be set to skip its prompt):
   BOT_TOKEN         Telegram bot token from @BotFather
@@ -35,11 +40,12 @@ HELP
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --dry-run)      DRY_RUN=1 ;;
-      --reset-config) RESET_CONFIG=1 ;;
-      --version)      echo "claudify $SCRIPT_VERSION"; exit 0 ;;
-      -h|--help)      show_help; exit 0 ;;
-      *)              fail "Unknown flag: $1 (try --help)" ;;
+      --dry-run)         DRY_RUN=1 ;;
+      --reset-config)    RESET_CONFIG=1 ;;
+      --non-interactive) NON_INTERACTIVE=1 ;;
+      --version)         echo "claudify $SCRIPT_VERSION"; exit 0 ;;
+      -h|--help)         show_help; exit 0 ;;
+      *)                 fail "Unknown flag: $1 (try --help)" ;;
     esac
     shift
   done
