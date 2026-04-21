@@ -4,7 +4,7 @@
 # THIS FILE IS GENERATED. Do not edit directly.
 # Source:  https://github.com/didi6135/Claudify
 # Edit:    install.sh + lib/*.sh in the source repo, then run `bash build.sh`
-# Built:   2026-04-21T08:11:36Z
+# Built:   2026-04-21T08:36:55Z
 #
 # Usage (on a target Linux server):
 #   curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash
@@ -504,7 +504,8 @@ seed_claude_state() {
   step "Seed Claude Code first-run state"
 
   local config="$HOME/.claude.json"
-  local wsdir="$HOME/workspace/$WORKSPACE"
+  local wsdir="$CLAUDIFY_WORKSPACE"
+  mkdir -p "$wsdir"
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] merge hasCompletedOnboarding + trust($wsdir) into $config"
@@ -613,11 +614,20 @@ install_telegram_plugin() {
   fi
 }
 
+# ─── Claudify layout ──────────────────────────────────────────────────────
+# Everything Claudify owns lives under a single root dir so uninstall is
+# `rm -rf $CLAUDIFY_ROOT`. Claude Code's own user-wide state (~/.claude,
+# ~/.claude.json) stays where it is — it belongs to Claude, not Claudify.
+CLAUDIFY_ROOT="$HOME/.claudify"
+CLAUDIFY_WORKSPACE="$CLAUDIFY_ROOT/workspace"
+CLAUDIFY_TELEGRAM="$CLAUDIFY_ROOT/telegram"
+CREDS_FILE="$CLAUDIFY_ROOT/credentials.env"
+
 # ─── Config files (idempotent) ────────────────────────────────────────────
 write_configs() {
   step "Write configuration"
 
-  local channels_dir="$HOME/.claude/channels/telegram"
+  local channels_dir="$CLAUDIFY_TELEGRAM"
   run "mkdir -p '$channels_dir'"
 
   # .env (bot token)
@@ -680,26 +690,28 @@ write_service() {
   local svc_dir="$HOME/.config/systemd/user"
   local svc_path="$svc_dir/claude-telegram.service"
   run "mkdir -p '$svc_dir'"
-  run "mkdir -p '$HOME/workspace/$WORKSPACE'"
+  run "mkdir -p '$CLAUDIFY_WORKSPACE'"
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] write $svc_path"
   else
     cat > "$svc_path" <<SVC
 [Unit]
-Description=Claude Code with Telegram channel ($WORKSPACE)
+Description=Claudify — Telegram bot ($WORKSPACE)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-# Load CLAUDE_CODE_OAUTH_TOKEN from here. Leading '-' makes it optional
-# so the unit can be written before oauth_setup runs.
-EnvironmentFile=-%h/.claude/credentials.env
+# All per-bot state lives under ~/.claudify (self-contained; rm -rf to uninstall).
+# Leading '-' on EnvironmentFile makes it optional so the unit can be
+# written before oauth_setup populates credentials.env.
+EnvironmentFile=-%h/.claudify/credentials.env
 Environment=PATH=%h/.bun/bin:%h/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=HOME=%h
 Environment=TERM=xterm-256color
-WorkingDirectory=%h/workspace/$WORKSPACE
+Environment=TELEGRAM_STATE_DIR=%h/.claudify/telegram
+WorkingDirectory=%h/.claudify/workspace
 ExecStart=/usr/bin/script -qfec "claude --permission-mode bypassPermissions --channels plugin:telegram@claude-plugins-official" /dev/null
 Restart=on-failure
 RestartSec=10
@@ -733,8 +745,8 @@ claude_is_authed() {
 # long-lived OAuth token, prints it to the terminal, and expects the
 # operator to set CLAUDE_CODE_OAUTH_TOKEN in the environment of whoever
 # runs `claude`. For a systemd-supervised bot that means loading the
-# token from an EnvironmentFile on the unit. Store it here:
-CREDS_FILE="$HOME/.claude/credentials.env"
+# token from an EnvironmentFile on the unit — stored under
+# $CLAUDIFY_ROOT/credentials.env (defined at the top of this file).
 
 oauth_setup() {
   step "Authenticate Claude (one-time)"
