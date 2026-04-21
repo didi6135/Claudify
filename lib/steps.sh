@@ -134,6 +134,7 @@ seed_claude_state() {
 
   printf '%s' "$existing" | jq --arg dir "$wsdir" '
     .hasCompletedOnboarding = true
+    | .bypassPermissionsModeAccepted = true
     | .projects = (.projects // {})
     | .projects[$dir] = ((.projects[$dir] // {}) + {
         hasTrustDialogAccepted: true,
@@ -309,7 +310,7 @@ Environment=PATH=%h/.bun/bin:%h/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/
 Environment=HOME=%h
 Environment=TERM=xterm-256color
 WorkingDirectory=%h/workspace/$WORKSPACE
-ExecStart=/usr/bin/script -qfec "claude --channels plugin:telegram@claude-plugins-official" /dev/null
+ExecStart=/usr/bin/script -qfec "claude --permission-mode bypassPermissions --channels plugin:telegram@claude-plugins-official" /dev/null
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
