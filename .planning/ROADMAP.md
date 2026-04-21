@@ -8,24 +8,28 @@ A phase is finished when **every** acceptance criterion passes — no
 
 ---
 
-## Phase 1 — Bootstrap `install.sh`
+## Phase 1 — Bootstrap `install.sh` ✅ DONE (2026-04-21)
 **Goal:** a single curl-pipe-bash command takes a fresh Ubuntu/Debian
-server to a running Claude+Telegram assistant in under 3 minutes,
-end-to-end, with as little operator interaction as possible.
+server to a running Claude+Telegram assistant in under 3 minutes.
 
-This phase **builds `install.sh` from scratch** in the new target-side
-model. The original `deploy.sh` (SSH-from-laptop) was retired and removed.
-
-Includes: project structure, conventions doc, ADRs for the major
-choices, robust install script with preflight, validation, idempotency,
-inline linger handling, logging, dry-run, and verification.
+**Shipped:** `install.sh` (modular under `lib/` + `build.sh` → `dist/install.sh`),
+`doctor.sh` (28-check health report), `.claudify/` single-folder layout,
+5 ADRs, verified end-to-end on Station11.
 
 → [phase-1-bootstrap.md](phases/phase-1-bootstrap.md)
 
 ---
 
-## Phase 2 — Distribution
-**Goal:** the install command is a real curl-able URL, not "git clone first."
+## Phase 2 — Distribution ✅ DONE (alongside Phase 1)
+**Shipped:** Repo is public at [github.com/didi6135/Claudify](https://github.com/didi6135/Claudify).
+`dist/install.sh` tracked in git. Install one-liner works:
+`curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash`.
+
+**Deferred to a future sub-phase** (not blocking Phase 3+): versioned
+git tags / GitHub releases, custom domain (`claudify.sh`). These are
+nice-to-haves; the curl one-liner already works without them.
+
+### (Original plan, for reference)
 
 - Repo flips from private to public
 - Stable install URL — either `raw.githubusercontent.com/didi6135/Claudify/main/install.sh` or a custom domain like `claudify.sh`
@@ -92,5 +96,5 @@ If a real need emerges, revisit by writing an ADR proposing the change.
 ---
 
 ## Progress tracking
-Current phase: **Phase 1** — building `install.sh`.
-Open tasks tracked in [phases/phase-1-bootstrap.md](phases/phase-1-bootstrap.md).
+Current phase: **Phase 3** — Lifecycle (`update.sh`, `backup.sh`,
+`uninstall.sh`, expanded doctor). Phase 1 & 2 done as of 2026-04-21.

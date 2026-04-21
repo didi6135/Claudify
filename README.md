@@ -60,6 +60,35 @@ systemctl --user restart claude-telegram      # restart
 systemctl --user stop    claude-telegram      # stop
 ```
 
+### Everything lives here
+
+All per-install state is under a single hidden folder:
+```
+~/.claudify/
+├── workspace/           claude's WorkingDirectory
+├── credentials.env      Claude OAuth token (chmod 600)
+└── telegram/            TELEGRAM_STATE_DIR
+    ├── .env             bot token (chmod 600)
+    └── access.json      user allowlist
+```
+To uninstall everything Claudify installed:
+```bash
+systemctl --user stop claude-telegram
+systemctl --user disable claude-telegram
+rm -f ~/.config/systemd/user/claude-telegram.service
+rm -rf ~/.claudify
+```
+
+## Diagnose (doctor)
+
+When something looks off, run:
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/doctor.sh)
+```
+
+It prints 28 health checks (deps, layout, auth, systemd, Telegram
+reachability) and gives a concrete next-step hint on every failure.
+
 ---
 
 ## Re-running the installer

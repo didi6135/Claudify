@@ -45,8 +45,10 @@ maintains it over time (update, backup, doctor, uninstall).
 - **Not a GUI** — the install is CLI; the day-to-day UX is Telegram (and later, other channels)
 
 ## Status
-**Phase 1 — Bootstrap install.sh** (in progress).
-See [ROADMAP.md](ROADMAP.md) and [phases/phase-1-bootstrap.md](phases/phase-1-bootstrap.md).
+**Phase 1 + 2 done** (2026-04-21) — one-command install works end-to-end,
+repo is public, `doctor.sh` reports 28 checks.
+**Phase 3 (Lifecycle) is next.**
+See [ROADMAP.md](ROADMAP.md).
 
 ## Stakeholders
 - **Operator / user:** one person (see [who-am-i.md](who-am-i.md))

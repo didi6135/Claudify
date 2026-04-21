@@ -1,8 +1,18 @@
 # Phase 1 — Bootstrap `install.sh`
 
-**Status:** in progress
+**Status:** ✅ **Done** (closed 2026-04-21)
 **Goal:** one curl command, run on the target server, takes Ubuntu/Debian
 to a running Claude+Telegram assistant in under 3 minutes.
+
+## Closed 2026-04-21
+
+End-to-end success on Station11: operator runs one curl command, sees
+the bot go live in ~60 seconds (subsequent runs, token cached). Every
+acceptance criterion below passed. `doctor.sh` reports 28/28 green on a
+working install.
+
+Decisions during Phase 1 captured in ADRs 0001–0005. Outstanding
+upstream UX asks filed in [upstream-wishlist.md](../upstream-wishlist.md).
 
 ---
 
