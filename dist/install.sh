@@ -4,7 +4,7 @@
 # THIS FILE IS GENERATED. Do not edit directly.
 # Source:  https://github.com/didi6135/Claudify
 # Edit:    install.sh + lib/*.sh in the source repo, then run `bash build.sh`
-# Built:   2026-04-20T14:04:16Z
+# Built:   2026-04-21T07:50:08Z
 #
 # Usage (on a target Linux server):
 #   curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash
@@ -474,6 +474,49 @@ collect_inputs() {
     "Letters, digits, dot, underscore, hyphen only — no spaces."
 }
 
+# ─── Claude Code first-run state ──────────────────────────────────────────
+# On first launch, Claude Code's TUI asks about theme + workspace trust.
+# A systemd-spawned service has no one to answer those prompts, so it
+# sits forever and the channel plugin never spawns. We pre-seed the
+# state it would have written after a successful manual onboarding.
+#
+# Keys verified against Claude Code v2.1.116 binary strings:
+#   hasCompletedOnboarding                    (top-level, user-wide)
+#   projects[<abs-path>].hasTrustDialogAccepted  (per-workspace trust)
+#   projects[<abs-path>].hasCompletedProjectOnboarding
+seed_claude_state() {
+  step "Seed Claude Code first-run state"
+
+  local config="$HOME/.claude.json"
+  local wsdir="$HOME/workspace/$WORKSPACE"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [DRY] merge hasCompletedOnboarding + trust($wsdir) into $config"
+    return 0
+  fi
+
+  # Merge with any existing content so we don't clobber fields claude
+  # may have already written (userID, firstStartTime, migration flags).
+  local existing='{}'
+  [[ -s "$config" ]] && existing=$(cat "$config")
+
+  if ! command -v jq >/dev/null 2>&1; then
+    fail "jq is required for seeding ~/.claude.json but was not found"
+  fi
+
+  printf '%s' "$existing" | jq --arg dir "$wsdir" '
+    .hasCompletedOnboarding = true
+    | .projects = (.projects // {})
+    | .projects[$dir] = ((.projects[$dir] // {}) + {
+        hasTrustDialogAccepted: true,
+        hasCompletedProjectOnboarding: true,
+        allowedTools: (.projects[$dir].allowedTools // [])
+      })
+  ' > "$config.tmp" && mv "$config.tmp" "$config"
+
+  ok "seeded ~/.claude.json (onboarding + trust for $wsdir)"
+}
+
 # ─── Claude Code ──────────────────────────────────────────────────────────
 # Set up a user-local npm prefix so global installs don't need sudo.
 setup_npm_prefix() {
@@ -788,6 +831,7 @@ main() {
   collect_inputs           # walks user through BotFather + userinfobot
 
   install_claude
+  seed_claude_state            # skip theme + trust prompts in the TUI
   install_telegram_plugin
   write_configs
   write_service

@@ -100,6 +100,49 @@ collect_inputs() {
     "Letters, digits, dot, underscore, hyphen only — no spaces."
 }
 
+# ─── Claude Code first-run state ──────────────────────────────────────────
+# On first launch, Claude Code's TUI asks about theme + workspace trust.
+# A systemd-spawned service has no one to answer those prompts, so it
+# sits forever and the channel plugin never spawns. We pre-seed the
+# state it would have written after a successful manual onboarding.
+#
+# Keys verified against Claude Code v2.1.116 binary strings:
+#   hasCompletedOnboarding                    (top-level, user-wide)
+#   projects[<abs-path>].hasTrustDialogAccepted  (per-workspace trust)
+#   projects[<abs-path>].hasCompletedProjectOnboarding
+seed_claude_state() {
+  step "Seed Claude Code first-run state"
+
+  local config="$HOME/.claude.json"
+  local wsdir="$HOME/workspace/$WORKSPACE"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [DRY] merge hasCompletedOnboarding + trust($wsdir) into $config"
+    return 0
+  fi
+
+  # Merge with any existing content so we don't clobber fields claude
+  # may have already written (userID, firstStartTime, migration flags).
+  local existing='{}'
+  [[ -s "$config" ]] && existing=$(cat "$config")
+
+  if ! command -v jq >/dev/null 2>&1; then
+    fail "jq is required for seeding ~/.claude.json but was not found"
+  fi
+
+  printf '%s' "$existing" | jq --arg dir "$wsdir" '
+    .hasCompletedOnboarding = true
+    | .projects = (.projects // {})
+    | .projects[$dir] = ((.projects[$dir] // {}) + {
+        hasTrustDialogAccepted: true,
+        hasCompletedProjectOnboarding: true,
+        allowedTools: (.projects[$dir].allowedTools // [])
+      })
+  ' > "$config.tmp" && mv "$config.tmp" "$config"
+
+  ok "seeded ~/.claude.json (onboarding + trust for $wsdir)"
+}
+
 # ─── Claude Code ──────────────────────────────────────────────────────────
 # Set up a user-local npm prefix so global installs don't need sudo.
 setup_npm_prefix() {

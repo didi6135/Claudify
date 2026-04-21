@@ -68,6 +68,7 @@ main() {
   collect_inputs           # walks user through BotFather + userinfobot
 
   install_claude
+  seed_claude_state            # skip theme + trust prompts in the TUI
   install_telegram_plugin
   write_configs
   write_service
