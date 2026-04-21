@@ -4,7 +4,7 @@
 # THIS FILE IS GENERATED. Do not edit directly.
 # Source:  https://github.com/didi6135/Claudify
 # Edit:    install.sh + lib/*.sh in the source repo, then run `bash build.sh`
-# Built:   2026-04-21T07:50:08Z
+# Built:   2026-04-21T07:57:03Z
 #
 # Usage (on a target Linux server):
 #   curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash
@@ -492,17 +492,19 @@ seed_claude_state() {
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] merge hasCompletedOnboarding + trust($wsdir) into $config"
+    echo "  [DRY] merge permissions.allow for telegram plugin tools into ~/.claude/settings.json"
     return 0
   fi
-
-  # Merge with any existing content so we don't clobber fields claude
-  # may have already written (userID, firstStartTime, migration flags).
-  local existing='{}'
-  [[ -s "$config" ]] && existing=$(cat "$config")
 
   if ! command -v jq >/dev/null 2>&1; then
     fail "jq is required for seeding ~/.claude.json but was not found"
   fi
+
+  # ── ~/.claude.json: onboarding + workspace trust ──────────────────────
+  # Merge with any existing content so we don't clobber fields claude
+  # may have already written (userID, firstStartTime, migration flags).
+  local existing='{}'
+  [[ -s "$config" ]] && existing=$(cat "$config")
 
   printf '%s' "$existing" | jq --arg dir "$wsdir" '
     .hasCompletedOnboarding = true
@@ -515,6 +517,28 @@ seed_claude_state() {
   ' > "$config.tmp" && mv "$config.tmp" "$config"
 
   ok "seeded ~/.claude.json (onboarding + trust for $wsdir)"
+
+  # ── ~/.claude/settings.json: auto-allow the telegram plugin's tools ──
+  # Without this, the bot prompts the user (via Telegram) to approve
+  # every single reply/react/edit. Owner already trusts their own bot.
+  local settings="$HOME/.claude/settings.json"
+  mkdir -p "$(dirname "$settings")"
+  local existing_s='{}'
+  [[ -s "$settings" ]] && existing_s=$(cat "$settings")
+
+  printf '%s' "$existing_s" | jq '
+    .permissions = (.permissions // {})
+    | .permissions.allow = (
+        ((.permissions.allow // []) + [
+          "mcp__plugin_telegram_telegram__reply",
+          "mcp__plugin_telegram_telegram__react",
+          "mcp__plugin_telegram_telegram__edit_message",
+          "mcp__plugin_telegram_telegram__download_attachment"
+        ]) | unique
+      )
+  ' > "$settings.tmp" && mv "$settings.tmp" "$settings"
+
+  ok "auto-allowed telegram plugin tools in ~/.claude/settings.json"
 }
 
 # ─── Claude Code ──────────────────────────────────────────────────────────
