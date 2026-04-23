@@ -73,11 +73,10 @@ All per-install state is under a single hidden folder:
 ```
 To uninstall everything Claudify installed:
 ```bash
-systemctl --user stop claude-telegram
-systemctl --user disable claude-telegram
-rm -f ~/.config/systemd/user/claude-telegram.service
-rm -rf ~/.claudify
+bash <(curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/uninstall.sh)
 ```
+(One script, prompts for confirmation, leaves Claude Code itself + Bun + npm
+alone — you can remove those manually if you want a completely clean system.)
 
 ## Diagnose (doctor)
 

@@ -33,7 +33,7 @@ bash restore.sh ./claudify-backup-2026-04-30.tar.gz
 Ordered small → large. Don't start the next until the previous is
 merged and tested on Station11.
 
-### 3.1 — `uninstall.sh` (bash, ~30 min)
+### 3.1 — `uninstall.sh` (bash, ~30 min) ✅ DONE 2026-04-23
 
 **Goal:** one command cleanly removes everything Claudify installed,
 leaving the system exactly as it was before (minus whatever the
