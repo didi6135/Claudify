@@ -10,8 +10,12 @@
 
 ```bash
 ssh you@your-server.com
-curl -fsSL https://claudify.sh/install | bash
+curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash
 ```
+
+> A short vanity URL (`https://claudify.sh/install`) is on the Phase 2
+> follow-up list; the GitHub raw URL above works today and is what
+> README.md documents.
 
 Everything runs locally on the server. No operator-side CLI, no remote-push
 machinery, no key-management dance.
@@ -52,7 +56,34 @@ See [ROADMAP.md](ROADMAP.md).
 
 ## Stakeholders
 - **Operator / user:** one person (see [who-am-i.md](who-am-i.md))
-- **Future:** public on GitHub once Phase 1 is shippable
+- **Public repo:** [github.com/didi6135/Claudify](https://github.com/didi6135/Claudify)
+  (public since 2026-04-21; MIT / TBD license)
+
+## Deferred / under consideration
+
+Ideas that came up during development, deliberately parked to keep the
+current product focused. Revisit when the baseline is solid.
+
+### SMB / country-first pivot (discussed 2026-04-23)
+**Direction considered:** reposition from "personal Claude via Telegram"
+to "AI assistant for small businesses, country by country, starting in
+Israel." Target = non-technical business owners; channel shifts to
+WhatsApp Business (dominant in Israel); integrations go
+country-specific (e.g. Israeli accounting: iCount, Hashavshevet).
+
+**Why parked:** the current product isn't polished enough to carry a
+pivot yet — Phase 3 (lifecycle) and Phase 4 (capabilities) should land
+first. The pivot also implies architectural changes (managed hosting?
+WhatsApp Business API? localization stack?) worth thinking about
+without time pressure.
+
+**When to pick it back up:** after Phase 3 and at least some of Phase 4
+ship. Before touching this again, do the 7-question vision exercise
+(ideal first customer, first-wow moment, deploy path, languages,
+pricing model, etc.) and rewrite this PROJECT.md accordingly — don't
+just bolt the new target on top of the old one.
+
+---
 
 ## Project conventions
 Code style, doc style, ADR format, and file-header rules live in

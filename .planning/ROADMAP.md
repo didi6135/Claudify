@@ -50,7 +50,7 @@ nice-to-haves; the curl one-liner already works without them.
 - `doctor.sh` — already in Phase 1, but expanded here
 - Optional auto-update on a cron
 
-→ phases/phase-3-lifecycle.md *(to be written)*
+→ [phase-3-lifecycle.md](phases/phase-3-lifecycle.md)
 
 ---
 
