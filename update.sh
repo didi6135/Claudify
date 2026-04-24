@@ -37,5 +37,8 @@ if [[ ! -d "$HOME/.claudify" ]] || [[ ! -s "$HOME/.claudify/telegram/.env" ]]; t
   exit 1
 fi
 
-curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh \
+# Cache-bust — raw.githubusercontent.com has CDN edges that sometimes serve
+# a stale copy for minutes after a push. A query string forces a fresh
+# fetch. (The server ignores the query; the cache keys on it.)
+curl -fsSL "https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh?t=$(date +%s)" \
   | bash -s -- --preserve-state

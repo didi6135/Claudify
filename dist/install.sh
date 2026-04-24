@@ -4,7 +4,7 @@
 # THIS FILE IS GENERATED. Do not edit directly.
 # Source:  https://github.com/didi6135/Claudify
 # Edit:    install.sh + lib/*.sh in the source repo, then run `bash build.sh`
-# Built:   2026-04-24T06:39:14Z
+# Built:   2026-04-24T06:40:35Z
 #
 # Usage (on a target Linux server):
 #   curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash

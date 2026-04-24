@@ -84,7 +84,7 @@ and `~/.claude.json` seed get refreshed.
 - Curl URL for `update.sh`
 - Tested: deliberately modify a file, run update, confirm state preserved
 
-### 3.3 — Seed starter `CLAUDE.md` persona (bash, ~30 min)
+### 3.3 — Seed starter `CLAUDE.md` persona (bash, ~30 min) ✅ DONE 2026-04-24
 
 > *Note:* This is technically a Phase 4 (Capabilities) item, pulled
 > forward because it's small and makes the bot feel personal. It's what
