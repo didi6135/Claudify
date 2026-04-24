@@ -72,6 +72,7 @@ main() {
   install_telegram_plugin
   write_configs
   write_service
+  seed_persona                 # starter CLAUDE.md (idempotent, preserved)
   oauth_setup
   start_service
 

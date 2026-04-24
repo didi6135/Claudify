@@ -29,7 +29,7 @@ single self-contained `dist/install.sh`.
 | `prompts.sh` | TTY-safe interactive prompts | `detect_tty`, `ask`, `ask_secret`, `ask_validated`, `ask_secret_validated`, `TTY_DEV` |
 | `validate.sh` | input format validators | `validate_bot_token`, `validate_user_id`, `validate_workspace` |
 | `preflight.sh` | pre-install checks + auto-install of missing deps | `preflight_os`, `preflight_prereqs`, `preflight_linger`, `offer_apt_install`, `install_node` |
-| `steps.sh` | install steps + onboarding walkthroughs | `intro`, `guide_botfather`, `guide_userinfobot`, `collect_inputs`, `install_claude`, `seed_claude_state`, `install_telegram_plugin`, `write_configs`, `write_service`, `oauth_setup`, `start_service`, `final_summary` |
+| `steps.sh` | install steps + onboarding walkthroughs | `intro`, `guide_botfather`, `guide_userinfobot`, `collect_inputs`, `install_claude`, `seed_claude_state`, `install_telegram_plugin`, `write_configs`, `write_service`, `seed_persona`, `oauth_setup`, `start_service`, `final_summary` |
 
 ## When to split a module further
 
