@@ -41,14 +41,14 @@ nice-to-haves; the curl one-liner already works without them.
 
 ---
 
-## Phase 3 — Lifecycle
+## Phase 3 — Lifecycle  🚧 in progress (3/5 tasks done)
 **Goal:** running an assistant for months, not just installing it once.
 
-- `update.sh` — Claude Code, plugins, MCPs, Claudify itself
-- `backup.sh` / `restore.sh` — `~/.claude`, workspaces, memories, secrets
-- `uninstall.sh` — clean removal
-- `doctor.sh` — already in Phase 1, but expanded here
-- Optional auto-update on a cron
+- ✅ `uninstall.sh` — one-command clean removal (2026-04-23)
+- ✅ `update.sh` + `install.sh --preserve-state` — in-place refresh, preserves tokens, ~10s (2026-04-24)
+- ✅ Starter `CLAUDE.md` persona seeded in workspace, edits survive updates (2026-04-24)
+- ⏳ `backup.sh` / `restore.sh` — tarball of `~/.claudify/` + unit + trust slice
+- ⏳ Keep README + ROADMAP in sync as tasks land
 
 → [phase-3-lifecycle.md](phases/phase-3-lifecycle.md)
 

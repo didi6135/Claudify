@@ -51,8 +51,15 @@ maintains it over time (update, backup, doctor, uninstall).
 ## Status
 **Phase 1 + 2 done** (2026-04-21) — one-command install works end-to-end,
 repo is public, `doctor.sh` reports 28 checks.
-**Phase 3 (Lifecycle) is next.**
-See [ROADMAP.md](ROADMAP.md).
+
+**Phase 3 in progress** (started 2026-04-23, 3/5 tasks done):
+- ✅ `uninstall.sh` — one-command clean removal
+- ✅ `update.sh` + `install.sh --preserve-state` — in-place refresh without re-OAuth (~10s)
+- ✅ Starter `CLAUDE.md` persona seeded to `~/.claudify/workspace/`, preserved across updates
+- ⏳ `backup.sh` + `restore.sh` — tarball round-trip (next up)
+- ⏳ Keep README + ROADMAP in sync as tasks land (ongoing)
+
+See [ROADMAP.md](ROADMAP.md) for phases ahead.
 
 ## Stakeholders
 - **Operator / user:** one person (see [who-am-i.md](who-am-i.md))
