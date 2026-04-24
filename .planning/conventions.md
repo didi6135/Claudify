@@ -118,6 +118,48 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ---
 
+## Size limits
+
+Files and functions have soft caps. When a file crosses, split it.
+
+- **Bash files:** ≤ **300 lines**.
+  - Current offender: `lib/steps.sh` (~430 lines). Due for split into
+    `lib/steps/{seed,oauth,configs,service}.sh` after Phase 3 closes.
+- **TypeScript files:** ≤ **300 lines**.
+- **Functions (any language):** ≤ **50 lines**.
+- **Line length:** soft 100 chars, hard 120.
+
+Rationale: when you can't hold a file in your head, readers either
+skim-read and miss bugs, or bail and ignore the file. 300 lines
+keeps things scannable without forcing premature fragmentation.
+
+## Shellcheck before push
+
+Every bash file I touch goes through:
+
+1. `bash -n <file>` — syntax parse
+2. `shellcheck <file>` — lint for common bash mistakes
+
+`shellcheck` is allowed to be missing locally (it's an apt package;
+we don't hard-require it yet), but if it IS installed, I run it.
+Disables need a reason comment:
+
+```bash
+# shellcheck disable=SC2034  # intentional: passed to jq via export
+local _=ignored
+```
+
+Phase 5 (security + observability) will wire this into a pre-commit
+hook or CI check.
+
+## Dead-code deletion
+
+When a feature is removed or a file becomes unused, the deletion
+lands in the **same commit** as the change that obsoleted it. No
+orphaned files, no commented-out blocks, no `.bak` suffixes, no
+`legacy/` folders squatting at the repo root. Git history holds the
+old code if we ever need it; the working tree stays clean.
+
 ## Things we explicitly don't do
 
 - Comments that restate the code
