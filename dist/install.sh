@@ -4,7 +4,7 @@
 # THIS FILE IS GENERATED. Do not edit directly.
 # Source:  https://github.com/didi6135/Claudify
 # Edit:    install.sh + lib/*.sh in the source repo, then run `bash build.sh`
-# Built:   2026-04-21T11:07:02Z
+# Built:   2026-04-24T06:31:25Z
 #
 # Usage (on a target Linux server):
 #   curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash
@@ -77,6 +77,7 @@ print_banner() {
 DRY_RUN=0
 RESET_CONFIG=0
 NON_INTERACTIVE=0
+PRESERVE_STATE=0
 
 show_help() {
   cat <<HELP
@@ -88,6 +89,10 @@ Usage:
 Flags:
   --dry-run           Print actions without modifying the system
   --reset-config      Overwrite existing token/allowlist (default: preserve)
+  --preserve-state    Update mode: reuse existing BOT_TOKEN, TG_USER_ID,
+                      OAuth token from ~/.claudify; only refresh the
+                      systemd unit + reseed claude.json. No prompts.
+                      Typically invoked by update.sh.
   --non-interactive   Skip all "Press ENTER" pauses and confirmation
                       prompts. Useful for automated tests / CI. Requires
                       BOT_TOKEN, TG_USER_ID (+ linger already on OR
@@ -110,6 +115,7 @@ parse_args() {
     case "$1" in
       --dry-run)         DRY_RUN=1 ;;
       --reset-config)    RESET_CONFIG=1 ;;
+      --preserve-state)  PRESERVE_STATE=1; NON_INTERACTIVE=1 ;;  # implies non-interactive
       --non-interactive) NON_INTERACTIVE=1 ;;
       --version)         echo "claudify $SCRIPT_VERSION"; exit 0 ;;
       -h|--help)         show_help; exit 0 ;;
@@ -461,7 +467,34 @@ guide_userinfobot() {
 
 # ─── Inputs ────────────────────────────────────────────────────────────────
 collect_inputs() {
-  step "Telegram bot setup"
+  step "Configuration"
+
+  # In --preserve-state mode, pull existing values from ~/.claudify so the
+  # operator doesn't have to supply them again. This is the hot path for
+  # update.sh: everything already exists; we just want to re-seed the unit.
+  if [[ "${PRESERVE_STATE:-0}" -eq 1 ]]; then
+    if [[ -z "${BOT_TOKEN:-}" && -s "$CLAUDIFY_TELEGRAM/.env" ]]; then
+      BOT_TOKEN="$(grep '^TELEGRAM_BOT_TOKEN=' "$CLAUDIFY_TELEGRAM/.env" | cut -d= -f2-)"
+      export BOT_TOKEN
+    fi
+    if [[ -z "${TG_USER_ID:-}" && -s "$CLAUDIFY_TELEGRAM/access.json" ]]; then
+      TG_USER_ID="$(jq -r '.allowFrom[0] // empty' "$CLAUDIFY_TELEGRAM/access.json" 2>/dev/null || true)"
+      export TG_USER_ID
+    fi
+    WORKSPACE="${WORKSPACE:-claude-bot}"
+    export WORKSPACE
+
+    if [[ -z "$BOT_TOKEN" || -z "$TG_USER_ID" ]]; then
+      fail "--preserve-state but no existing config found in $CLAUDIFY_TELEGRAM.
+     For a first-time install, omit --preserve-state and run install.sh normally."
+    fi
+    ok "BOT_TOKEN reused from $CLAUDIFY_TELEGRAM/.env"
+    ok "TG_USER_ID reused from $CLAUDIFY_TELEGRAM/access.json ($TG_USER_ID)"
+    ok "WORKSPACE = $WORKSPACE"
+    return 0
+  fi
+
+  # Fresh install flow —
 
   # Bot token — show walkthrough only if not pre-filled via env.
   if [[ -z "${BOT_TOKEN:-}" ]]; then
@@ -750,6 +783,14 @@ claude_is_authed() {
 
 oauth_setup() {
   step "Authenticate Claude (one-time)"
+
+  # Preserve-state (update.sh path): if credentials.env exists we trust
+  # the operator's current token even if claude auth status disagrees.
+  # They'd fix it explicitly with a fresh install, not via an update.
+  if [[ "${PRESERVE_STATE:-0}" -eq 1 && -s "$CREDS_FILE" ]]; then
+    ok "credentials.env present (preserved; not re-exchanging OAuth)"
+    return 0
+  fi
 
   # Already authed? Either from a prior install or from CLAUDE_CODE_OAUTH_TOKEN
   # already in the environment. Don't re-run setup-token.

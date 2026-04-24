@@ -9,6 +9,7 @@
 DRY_RUN=0
 RESET_CONFIG=0
 NON_INTERACTIVE=0
+PRESERVE_STATE=0
 
 show_help() {
   cat <<HELP
@@ -20,6 +21,10 @@ Usage:
 Flags:
   --dry-run           Print actions without modifying the system
   --reset-config      Overwrite existing token/allowlist (default: preserve)
+  --preserve-state    Update mode: reuse existing BOT_TOKEN, TG_USER_ID,
+                      OAuth token from ~/.claudify; only refresh the
+                      systemd unit + reseed claude.json. No prompts.
+                      Typically invoked by update.sh.
   --non-interactive   Skip all "Press ENTER" pauses and confirmation
                       prompts. Useful for automated tests / CI. Requires
                       BOT_TOKEN, TG_USER_ID (+ linger already on OR
@@ -42,6 +47,7 @@ parse_args() {
     case "$1" in
       --dry-run)         DRY_RUN=1 ;;
       --reset-config)    RESET_CONFIG=1 ;;
+      --preserve-state)  PRESERVE_STATE=1; NON_INTERACTIVE=1 ;;  # implies non-interactive
       --non-interactive) NON_INTERACTIVE=1 ;;
       --version)         echo "claudify $SCRIPT_VERSION"; exit 0 ;;
       -h|--help)         show_help; exit 0 ;;
