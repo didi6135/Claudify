@@ -61,7 +61,7 @@ what's left and can decide to remove it manually.
 - Curl URL works: `bash <(curl -fsSL .../uninstall.sh)`
 - Mentioned in README under "Uninstall"
 
-### 3.2 — `update.sh` + `install.sh --preserve-state` flag (bash, ~1–2 hrs)
+### 3.2 — `update.sh` + `install.sh --preserve-state` flag (bash, ~1–2 hrs) ✅ DONE 2026-04-24
 
 **Goal:** pull the latest `install.sh` from main and re-run in a mode
 that keeps existing `credentials.env`, `telegram/.env`, and

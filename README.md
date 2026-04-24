@@ -90,15 +90,23 @@ reachability) and gives a concrete next-step hint on every failure.
 
 ---
 
-## Re-running the installer
+## Update
 
-Safe and fast. The installer is idempotent — it preserves your existing
-config, skips work that's already done, and completes in seconds. Use
-this whenever you want to update Claude Code or the Telegram plugin.
+Pulls latest Claudify from main and re-runs in-place, preserving your
+bot token, allowlist, and OAuth credentials. Typically ~10 seconds.
 
-To overwrite your token / allowlist on purpose:
 ```bash
-... | bash -s -- --reset-config
+bash <(curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/update.sh)
+```
+
+What survives: `BOT_TOKEN`, `TG_USER_ID` allowlist, Claude OAuth token,
+your edits to `~/.claudify/workspace/CLAUDE.md`.
+What changes: the systemd unit, claude CLI / plugin (if newer is out),
+`~/.claude.json` seed (idempotent), service restart.
+
+To overwrite tokens on purpose:
+```bash
+curl -fsSL .../install.sh | bash -s -- --reset-config
 ```
 
 ---
