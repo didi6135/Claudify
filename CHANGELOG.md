@@ -11,7 +11,33 @@ fresh Unreleased block goes back on top.
 
 ## [Unreleased]
 
-(Entries land here as Phase 3.4 and beyond ship.)
+### Added
+
+- **`docs/architecture.md`** — canonical reference for how Claudify
+  is built. 11 sections covering invariants, layering, repo + runtime
+  folder structure, the four extension types (channels / MCPs /
+  skills / hooks), manifest schema, engine abstraction, entrypoint
+  responsibilities, test strategy, contributor walkthrough, migration
+  roadmap, and a full security model with explicit threat-model
+  boundaries.
+- **Multi-instance design committed** — every install becomes an
+  *instance* with its own state under `~/.claudify/instances/<name>/`,
+  its own systemd unit (`claudify-<name>.service`), and its own
+  personal CLI command (`<name> doctor`, `<name> update`, etc.).
+  Implementation lands in Phase 3.4.
+- **Engine abstraction design** — `lib/engines/<engine-id>.sh`
+  contract with 6 functions (`engine_install`, `engine_auth_check`,
+  `engine_auth_setup`, `engine_run_args`, `engine_status`,
+  `engine_uninstall`). Today's only adapter: `claude-code.sh`.
+  Future engines plug in by writing one file. (See ADR 0005.)
+
+### Changed
+
+- **Phase 3 scope expanded** from 3.4 (just backup/restore) to 3.4
+  (architectural refactor — multi-instance, engine abstraction,
+  manifests, personal commands, lib/steps.sh split), 3.5
+  (backup/restore in TypeScript), 3.6 (security hardening pass),
+  3.7 (docs sync). See `phase-3-lifecycle.md` for the breakdown.
 
 ---
 

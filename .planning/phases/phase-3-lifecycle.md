@@ -107,37 +107,126 @@ CLAUDE.md discovery works).
 - Tested: after install, bot replies in a style that matches the seed
 - Operator can edit `~/.claudify/workspace/CLAUDE.md` and see behavior change on next message
 
-### 3.4 — `backup.sh` + `restore.sh` (bash, ~2 hrs)
+### 3.4 — Architectural refactor: multi-instance + engine abstraction + reorg (TS+bash, ~6–8 hrs)
 
-**Goal:** serialize everything Claudify state into a single tarball
-that can be dropped onto a fresh server to re-spawn the bot.
+**Goal:** implement everything `docs/architecture.md` describes that's
+not yet built. After this lands, every entrypoint speaks the new
+model and the codebase is in long-term shape.
+
+**Scope (each bullet is a separate commit):**
+
+1. **Repo skeleton** — create `lib/engines/`, `src/`, `tests/bash/`,
+   `tests/ts/`. Add minimal `tsconfig.json` + `package.json` under
+   `src/` so `bun install && bun test` works (with one canary test).
+   Delete unused `templates/{access.json,claude-telegram.service}`.
+2. **`lib/steps.sh` split** — break ~430-line `steps.sh` into
+   `onboarding.sh`, `configs.sh`, `service.sh`, `oauth.sh`,
+   `manifest.sh`. Update `install.sh` source order + `build.sh`
+   MODULES list. `bash -n` + smoke test on Station11.
+3. **Engine abstraction** — extract Claude-specific code into
+   `lib/engines/claude-code.sh` implementing the 6-function contract
+   (`engine_install`, `engine_auth_check`, `engine_auth_setup`,
+   `engine_run_args`, `engine_status`, `engine_uninstall`). Replace
+   direct `claude` calls in step modules with `engine_*` calls.
+4. **Manifest files** — `lib/manifest.sh` reads/writes
+   `~/.claudify/instances.json` and per-instance `claudify.json`.
+   `install.sh` writes both at the end. `doctor.sh` reads them.
+5. **Multi-instance layout** — change paths from `~/.claudify/...` to
+   `~/.claudify/instances/<name>/...`. Add `--name <NAME>` flag to
+   every entrypoint, default `default`. Service unit name becomes
+   `claudify-<name>.service`.
+6. **Personal command wrapper** — `lib/personal-cmd.sh` generates
+   `~/.local/bin/<name>` with the dispatch table (`doctor`,
+   `update`, `uninstall`, `status`, `logs`, `restart`, `stop`,
+   `start`). Adds `~/.local/bin` to PATH in `~/.bashrc` if needed.
+   Validation per `lib/validate.sh`'s blocklist.
+7. **Migration logic** — `install.sh` detects old single-instance
+   layout (`~/.claudify/claudify.json` at root) and migrates to
+   `instances/default/` + renames service. One-time, idempotent.
+8. **Docs in sync** — README updated for `--name` and personal
+   commands; doctor.sh + uninstall.sh + update.sh adopt new paths;
+   CHANGELOG entry.
+
+**Acceptance:**
+- [ ] Fresh install on Station11 (autoinstall) creates
+      `~/.claudify/instances/default/` and `~/.local/bin/default`
+      (or whatever the operator picks)
+- [ ] `default doctor` works
+- [ ] Second install with `--name business` creates a parallel
+      instance without touching the first
+- [ ] Migration from old single-instance layout runs cleanly
+      (test by installing the *previous* version on a fresh VPS,
+      then updating to the new one)
+- [ ] All bash files under 300 lines; no function over 50 lines
+- [ ] `bash test.sh` runs both bash + TS canary tests, both pass
+
+### 3.5 — `backup.sh` + `restore.sh` (TypeScript via Bun, ~3–4 hrs)
+
+**Goal:** serialize one or more instances' state into a tarball that
+can be dropped onto a fresh server to rehydrate the bot.
 
 **Scope:**
-- `backup.sh`: tar `~/.claudify/` + the systemd unit file + the
-  relevant `~/.claude.json` trust entry → `claudify-backup-<host>-<timestamp>.tar.gz`
-- `restore.sh <tarball>`: untar in the right places, `daemon-reload`,
-  start service, run doctor
-- Both scripts: `--to <dir>` / `--from <dir>` for non-interactive use
+- `src/backup.ts`: tar `~/.claudify/instances/<name>/` + the systemd
+  unit file + the relevant `~/.claude.json` trust slice →
+  `claudify-<name>-<host>-<timestamp>.tar.gz`. Flag: `--name <NAME>`
+  (required) or `--all`. Optional `--out <dir>`.
+- `src/restore.ts`: untar onto a fresh server, fix permissions,
+  re-create systemd unit, `daemon-reload`, start, run doctor. Refuses
+  to overwrite an existing instance of the same name.
+- `backup.sh` + `restore.sh` at repo root are bash shims that find
+  bun and exec into the TS entrypoints.
 
-**Delivery:**
-- Round-trip tested: backup on Station11 → restore on a fresh VPS (or
-  simulated via scrub-then-restore on Station11)
-- doctor reports 28 green after restore
+**Acceptance:**
+- [ ] Round-trip tested: backup on Station11 → uninstall → restore →
+      `default doctor` reports green
+- [ ] `--all` mode creates one tarball per instance
+- [ ] Refuses to restore on top of an existing instance with same name
+- [ ] First piece of TypeScript code in production use; sets the
+      pattern for future TS modules
 
-### 3.5 — Update README + ROADMAP after each task lands
+### 3.6 — Security hardening pass (~1–2 hrs)
+
+**Goal:** verify the security model in `docs/architecture.md §11` is
+actually true in code; fix any gaps.
+
+**Scope:**
+- Audit every `chmod` call — `credentials.env`, `*.env`, `oauth.json`
+  all 600
+- Audit `Environment=` vs `EnvironmentFile=` in systemd units —
+  no secrets in `Environment=`
+- Audit every `command output` capture for token leakage; ensure all
+  use sed-redact
+- Audit input validation paths — every operator input has a
+  validator + blocklist where relevant
+- Add the threat-model + operator-action checklist to README in a
+  "Security" section that links to `architecture.md §11`
+
+**Acceptance:**
+- [ ] No secrets in any `ps aux` output during install or runtime
+- [ ] `chmod` audit produces no surprises
+- [ ] README has a Security section users can read
+- [ ] CHANGELOG documents the audit and any tightening done
+
+### 3.7 — Update README + ROADMAP + status docs
 
 Keeps docs in sync rather than all at once at the end of the phase.
+Lands at the end of each numbered task above.
 
 ---
 
 ## Acceptance criteria
 
 Phase 3 is **done** when:
-- [ ] `uninstall.sh` removes Claudify state cleanly and reports what was kept
-- [ ] `update.sh` upgrades an install in <20s without re-OAuth
-- [ ] `CLAUDE.md` lives in `~/.claudify/workspace/`, persists across updates, demonstrably changes bot behavior
+- [x] `uninstall.sh` removes Claudify state cleanly and reports what was kept
+- [x] `update.sh` upgrades an install in <20s without re-OAuth
+- [x] `CLAUDE.md` lives in `~/.claudify/workspace/`, persists across updates, demonstrably changes bot behavior
+- [ ] Architecture refactor (3.4) lands — multi-instance layout, engine abstraction, personal commands, manifest, lib/steps.sh split, src/ + tests/ skeleton, migration from old layout
 - [ ] `backup.sh` produces a tarball; `restore.sh` rehydrates it on a fresh server; doctor passes
-- [ ] All four scripts ship with a curl-one-liner documented in README
+- [ ] Security hardening pass (3.6) audits chmod, Environment vs EnvironmentFile, redaction, input validation; README has Security section
+- [ ] All entrypoints accept `--name`; personal command wrappers work
+- [ ] All bash files ≤ 300 lines; functions ≤ 50 lines
+- [ ] `bash test.sh` passes (bash bats + TS bun test)
+- [ ] All entrypoints documented in README with curl one-liners
 - [ ] `phase-3-lifecycle.md` updated with status markers as tasks close
 
 ---
@@ -145,7 +234,7 @@ Phase 3 is **done** when:
 ## Out of scope for Phase 3
 
 - Gmail / Calendar / Drive MCPs (Phase 4)
-- Multi-workspace support (Phase 4)
+- Discord / WhatsApp / email channels (Phase 4-5)
 - Cost ceiling, audit log, health check endpoint (Phase 5)
-- Migration of any existing `update.sh` / `backup.sh` to TypeScript
-  (deferred to whenever the scripts outgrow bash comfortably)
+- Multi-engine implementation (Phase 6 — only triggered per ADR 0005 conditions)
+- Hosted SaaS path (out of vision — see PROJECT.md non-goals)

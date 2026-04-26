@@ -52,14 +52,18 @@ maintains it over time (update, backup, doctor, uninstall).
 **Phase 1 + 2 done** (2026-04-21) — one-command install works end-to-end,
 repo is public, `doctor.sh` reports 28 checks.
 
-**Phase 3 in progress** (started 2026-04-23, 3/5 tasks done):
+**Phase 3 in progress** (started 2026-04-23):
 - ✅ `uninstall.sh` — one-command clean removal
 - ✅ `update.sh` + `install.sh --preserve-state` — in-place refresh without re-OAuth (~10s)
 - ✅ Starter `CLAUDE.md` persona seeded to `~/.claudify/workspace/`, preserved across updates
-- ⏳ `backup.sh` + `restore.sh` — tarball round-trip (next up)
-- ⏳ Keep README + ROADMAP in sync as tasks land (ongoing)
+- ✅ `docs/architecture.md` — canonical "how Claudify is built" reference (2026-04-26)
+- ⏳ Architecture refactor (3.4): multi-instance, engine abstraction, manifest, personal commands, `lib/steps.sh` split
+- ⏳ `backup.sh` + `restore.sh` (3.5) — TypeScript via Bun
+- ⏳ Security hardening pass (3.6) — audit chmod / Environment / redaction / input validation
+- ⏳ Keep README + ROADMAP in sync as tasks land
 
-See [ROADMAP.md](ROADMAP.md) for phases ahead.
+See [ROADMAP.md](ROADMAP.md) for phases ahead and
+[docs/architecture.md](../docs/architecture.md) for the structural reference.
 
 ## Stakeholders
 - **Operator / user:** one person (see [who-am-i.md](who-am-i.md))
