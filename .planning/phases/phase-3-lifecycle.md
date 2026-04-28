@@ -33,6 +33,12 @@ bash restore.sh ./claudify-backup-2026-04-30.tar.gz
 Ordered small → large. Don't start the next until the previous is
 merged and tested on Station11.
 
+> **Detailed per-task specs are in [`phase-3-tasks/`](phase-3-tasks/README.md).**
+> Each numbered task below has its own file with goal, scope, exact
+> files affected, ordered steps, acceptance criteria, and test plan.
+> The index at [`phase-3-tasks/README.md`](phase-3-tasks/README.md) is
+> the live status board.
+
 ### 3.1 — `uninstall.sh` (bash, ~30 min) ✅ DONE 2026-04-23
 
 **Goal:** one command cleanly removes everything Claudify installed,
