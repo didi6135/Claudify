@@ -11,6 +11,19 @@ fresh Unreleased block goes back on top.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`claude setup-token` rendering as stacked splash screens during
+  install.** ui.sh's `setup_logging` redirects stdout into a `tee` pipe
+  for the install log, so claude-code's TUI saw no-TTY-on-stdout and
+  fell back to a degraded mode that re-painted the entire welcome
+  banner on every spinner tick. `oauth.sh` now wraps setup-token in
+  `script(1)` (real PTY) with stdin/stdout pinned to `$TTY_DEV`,
+  bypassing the tee so the user gets a live, in-place TUI render. The
+  long-lived token is captured to a `chmod 600` temp file and shredded
+  after `_persist_oauth_token` grep-extracts it (no more reliance on
+  the install log holding the token).
+
 ### Added
 
 - **Repo skeleton for Phase 3.4** — `lib/engines/`, `src/` (TypeScript
