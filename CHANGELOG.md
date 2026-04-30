@@ -13,6 +13,12 @@ fresh Unreleased block goes back on top.
 
 ### Added
 
+- **Repo skeleton for Phase 3.4** — `lib/engines/`, `src/` (TypeScript
+  scaffold: `tsconfig.json`, `package.json`, `src/lib/`),
+  `tests/bash/` + `tests/ts/` with one canary test each, and
+  `test.sh` at repo root that runs both suites and warn-skips a
+  missing runner (bats or bun). Empty folders for now — real engine
+  adapter, TS modules, and entrypoint tests land in 3.4.3, 3.5, 3.4.x.
 - **`docs/architecture.md`** — canonical reference for how Claudify
   is built. 11 sections covering invariants, layering, repo + runtime
   folder structure, the four extension types (channels / MCPs /
@@ -33,11 +39,31 @@ fresh Unreleased block goes back on top.
 
 ### Changed
 
+- **`lib/steps.sh` split into 5 focused modules** to comply with the
+  300-line file / 50-line function limits in `CLAUDE.md` rule 1.
+  The 615-line catch-all became `onboarding.sh` (intro + Telegram
+  walkthroughs + input collection), `claude.sh` (TEMP — Claude Code
+  install + plugin install + first-run-state seeding + auth probe;
+  also holds Claudify-layout constants until 3.4.3 splits them out
+  into the engine adapter), `configs.sh` (bot `.env` + allowlist +
+  starter persona), `service.sh` (systemd unit + start + final
+  summary), `oauth.sh` (`claude setup-token` + token capture). Pure
+  refactor; no behavior change. Verified via Station11 round-trip
+  (`--preserve-state --non-interactive`) — install completes clean,
+  service stays up, doctor reports 28/28.
 - **Phase 3 scope expanded** from 3.4 (just backup/restore) to 3.4
   (architectural refactor — multi-instance, engine abstraction,
   manifests, personal commands, lib/steps.sh split), 3.5
   (backup/restore in TypeScript), 3.6 (security hardening pass),
   3.7 (docs sync). See `phase-3-lifecycle.md` for the breakdown.
+
+### Removed
+
+- **Unused `templates/` files** — `access.json`,
+  `claude-telegram.service`, and the folder's `README.md`. Both
+  config files were artifacts of the original `deploy.sh` flow and
+  were never read at runtime; the live install renders these inline
+  via heredocs in `lib/steps.sh`. Folder is gone.
 
 ---
 

@@ -38,3 +38,7 @@ desktop.ini
 # Node (future-proofing)
 node_modules/
 npm-debug.log*
+
+# Bun + TS build output
+bun.lockb
+src/dist/

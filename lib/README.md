@@ -29,11 +29,19 @@ single self-contained `dist/install.sh`.
 | `prompts.sh` | TTY-safe interactive prompts | `detect_tty`, `ask`, `ask_secret`, `ask_validated`, `ask_secret_validated`, `TTY_DEV` |
 | `validate.sh` | input format validators | `validate_bot_token`, `validate_user_id`, `validate_workspace` |
 | `preflight.sh` | pre-install checks + auto-install of missing deps | `preflight_os`, `preflight_prereqs`, `preflight_linger`, `offer_apt_install`, `install_node` |
-| `steps.sh` | install steps + onboarding walkthroughs | `intro`, `guide_botfather`, `guide_userinfobot`, `collect_inputs`, `install_claude`, `seed_claude_state`, `install_telegram_plugin`, `write_configs`, `write_service`, `seed_persona`, `oauth_setup`, `start_service`, `final_summary` |
+| `onboarding.sh` | welcome banner + Telegram walkthroughs + input collection | `intro`, `guide_botfather`, `guide_userinfobot`, `collect_inputs` |
+| `claude.sh` | Claude Code engine + plugin install + auth probe + Claudify-layout constants (TEMP — gets split in 3.4.3 between `lib/engines/claude-code.sh` and engine-agnostic glue) | constants `NPM_PREFIX`, `CLAUDIFY_ROOT`, `CLAUDIFY_WORKSPACE`, `CLAUDIFY_TELEGRAM`, `CREDS_FILE`; functions `setup_npm_prefix`, `install_claude`, `install_telegram_plugin`, `seed_claude_state`, `claude_is_authed` |
+| `configs.sh` | bot `.env` + allowlist + starter persona | `write_configs`, `seed_persona` |
+| `service.sh` | systemd user unit + start + final summary | `write_service`, `start_service`, `final_summary` |
+| `oauth.sh` | claude OAuth setup + long-lived token capture for systemd | `oauth_setup` |
+| `engines/` | engine adapters (one file per LLM CLI) — see `lib/engines/README.md` and `docs/architecture.md §6` | each adapter exposes the 6-function contract: `engine_install`, `engine_auth_check`, `engine_auth_setup`, `engine_run_args`, `engine_status`, `engine_uninstall` |
 
 ## When to split a module further
 
-`steps.sh` is the largest. If it crosses ~400 lines or develops
-multiple unrelated concerns (e.g. updates separate from initial
-install), split into `lib/steps/<step>.sh` files and update both
-`install.sh` and `build.sh` accordingly.
+Hard limits: ≤300 lines per file, ≤50 lines per function (per
+`CLAUDIFY/CLAUDE.md` rule 1). When a file approaches the file limit,
+or grows two distinct concerns, split it into a new `lib/<name>.sh`
+and update both `install.sh` (source order) and `build.sh` (MODULES
+array). The 3.4.2 split of the old `steps.sh` is the canonical
+example — one ~430-line catch-all became five focused modules
+(`onboarding`, `claude`, `configs`, `service`, `oauth`).

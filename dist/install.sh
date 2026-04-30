@@ -4,7 +4,7 @@
 # THIS FILE IS GENERATED. Do not edit directly.
 # Source:  https://github.com/didi6135/Claudify
 # Edit:    install.sh + lib/*.sh in the source repo, then run `bash build.sh`
-# Built:   2026-04-24T06:47:27Z
+# Built:   2026-04-29T12:03:24Z
 #
 # Usage (on a target Linux server):
 #   curl -fsSL https://raw.githubusercontent.com/didi6135/Claudify/main/dist/install.sh | bash
@@ -393,24 +393,22 @@ preflight_linger() {
   ok "linger enabled"
 }
 
-# ─── from lib/steps.sh ─────────────────────────────────────────────────
-# lib/steps.sh — the install steps themselves
+# ─── from lib/onboarding.sh ─────────────────────────────────────────────────
+# lib/onboarding.sh — welcome banner + Telegram walkthroughs + input collection
 #
-# Each public function here is one step in the install flow. main() in
-# install.sh calls them in order. Steps are idempotent: re-running on a
-# configured server is safe and skips work that's already done.
+# The user-facing first half of the install: explains what's about to
+# happen, walks the operator through creating a Telegram bot if they
+# don't have one, and collects BOT_TOKEN / TG_USER_ID / WORKSPACE.
+#
+# Constants `CLAUDIFY_TELEGRAM` etc. are defined in lib/claude.sh and
+# referenced here at call time (not source time), so source order
+# between the two doesn't matter for correctness.
 #
 # Exposes:
-#   collect_inputs              — prompts for BOT_TOKEN / TG_USER_ID / WORKSPACE
-#   install_claude              — installs Claude Code CLI to ~/.npm-global
-#   install_telegram_plugin     — adds marketplace + plugin
-#   write_configs               — .env + access.json (idempotent)
-#   write_service               — systemd user unit + enable
-#   oauth_setup                 — runs `claude setup-token` if not authed
-#   start_service               — restart + verify the unit stays up
-#   final_summary               — congratulatory output + useful commands
-
-NPM_PREFIX="$HOME/.npm-global"
+#   intro                 — welcome message, ENTER to continue
+#   guide_botfather       — printed walkthrough for creating a Telegram bot
+#   guide_userinfobot     — printed walkthrough for finding a Telegram user ID
+#   collect_inputs        — prompts (or reuses, in --preserve-state) the 3 inputs
 
 # ─── Welcome ──────────────────────────────────────────────────────────────
 intro() {
@@ -466,37 +464,33 @@ guide_userinfobot() {
 }
 
 # ─── Inputs ────────────────────────────────────────────────────────────────
-collect_inputs() {
-  step "Configuration"
-
-  # In --preserve-state mode, pull existing values from ~/.claudify so the
-  # operator doesn't have to supply them again. This is the hot path for
-  # update.sh: everything already exists; we just want to re-seed the unit.
-  if [[ "${PRESERVE_STATE:-0}" -eq 1 ]]; then
-    if [[ -z "${BOT_TOKEN:-}" && -s "$CLAUDIFY_TELEGRAM/.env" ]]; then
-      BOT_TOKEN="$(grep '^TELEGRAM_BOT_TOKEN=' "$CLAUDIFY_TELEGRAM/.env" | cut -d= -f2-)"
-      export BOT_TOKEN
-    fi
-    if [[ -z "${TG_USER_ID:-}" && -s "$CLAUDIFY_TELEGRAM/access.json" ]]; then
-      TG_USER_ID="$(jq -r '.allowFrom[0] // empty' "$CLAUDIFY_TELEGRAM/access.json" 2>/dev/null || true)"
-      export TG_USER_ID
-    fi
-    WORKSPACE="${WORKSPACE:-claude-bot}"
-    export WORKSPACE
-
-    if [[ -z "$BOT_TOKEN" || -z "$TG_USER_ID" ]]; then
-      fail "--preserve-state but no existing config found in $CLAUDIFY_TELEGRAM.
-     For a first-time install, omit --preserve-state and run install.sh normally."
-    fi
-    ok "BOT_TOKEN reused from $CLAUDIFY_TELEGRAM/.env"
-    ok "TG_USER_ID reused from $CLAUDIFY_TELEGRAM/access.json ($TG_USER_ID)"
-    ok "WORKSPACE = $WORKSPACE"
-    return 0
+# In --preserve-state mode (update.sh hot path), pull existing values
+# from ~/.claudify so the operator doesn't have to retype them. Fail
+# loudly if --preserve-state is set but no install exists to preserve.
+_collect_inputs_preserved() {
+  if [[ -z "${BOT_TOKEN:-}" && -s "$CLAUDIFY_TELEGRAM/.env" ]]; then
+    BOT_TOKEN="$(grep '^TELEGRAM_BOT_TOKEN=' "$CLAUDIFY_TELEGRAM/.env" | cut -d= -f2-)"
+    export BOT_TOKEN
   fi
+  if [[ -z "${TG_USER_ID:-}" && -s "$CLAUDIFY_TELEGRAM/access.json" ]]; then
+    TG_USER_ID="$(jq -r '.allowFrom[0] // empty' "$CLAUDIFY_TELEGRAM/access.json" 2>/dev/null || true)"
+    export TG_USER_ID
+  fi
+  WORKSPACE="${WORKSPACE:-claude-bot}"
+  export WORKSPACE
 
-  # Fresh install flow —
+  if [[ -z "$BOT_TOKEN" || -z "$TG_USER_ID" ]]; then
+    fail "--preserve-state but no existing config found in $CLAUDIFY_TELEGRAM.
+     For a first-time install, omit --preserve-state and run install.sh normally."
+  fi
+  ok "BOT_TOKEN reused from $CLAUDIFY_TELEGRAM/.env"
+  ok "TG_USER_ID reused from $CLAUDIFY_TELEGRAM/access.json ($TG_USER_ID)"
+  ok "WORKSPACE = $WORKSPACE"
+}
 
-  # Bot token — show walkthrough only if not pre-filled via env.
+# Fresh install: prompt for whichever inputs aren't pre-filled via env.
+# Each prompt skips its walkthrough if the value is already in the env.
+_collect_inputs_fresh() {
   if [[ -z "${BOT_TOKEN:-}" ]]; then
     guide_botfather
   fi
@@ -506,7 +500,6 @@ collect_inputs() {
     "Format: digits, colon, then characters (e.g. 1234567890:ABC-...)"
   ok "bot token format valid"
 
-  # User ID — same pattern.
   if [[ -z "${TG_USER_ID:-}" ]]; then
     guide_userinfobot
   fi
@@ -515,7 +508,6 @@ collect_inputs() {
     "" TG_USER_ID validate_user_id \
     "Must be all digits."
 
-  # Workspace — usually default is fine, no walkthrough.
   echo
   ask_validated \
     "Workspace folder name" \
@@ -523,76 +515,55 @@ collect_inputs() {
     "Letters, digits, dot, underscore, hyphen only — no spaces."
 }
 
-# ─── Claude Code first-run state ──────────────────────────────────────────
-# On first launch, Claude Code's TUI asks about theme + workspace trust.
-# A systemd-spawned service has no one to answer those prompts, so it
-# sits forever and the channel plugin never spawns. We pre-seed the
-# state it would have written after a successful manual onboarding.
-#
-# Keys verified against Claude Code v2.1.116 binary strings:
-#   hasCompletedOnboarding                    (top-level, user-wide)
-#   projects[<abs-path>].hasTrustDialogAccepted  (per-workspace trust)
-#   projects[<abs-path>].hasCompletedProjectOnboarding
-seed_claude_state() {
-  step "Seed Claude Code first-run state"
-
-  local config="$HOME/.claude.json"
-  local wsdir="$CLAUDIFY_WORKSPACE"
-  mkdir -p "$wsdir"
-
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "  [DRY] merge hasCompletedOnboarding + trust($wsdir) into $config"
-    echo "  [DRY] merge permissions.allow for telegram plugin tools into ~/.claude/settings.json"
-    return 0
+collect_inputs() {
+  step "Configuration"
+  if [[ "${PRESERVE_STATE:-0}" -eq 1 ]]; then
+    _collect_inputs_preserved
+  else
+    _collect_inputs_fresh
   fi
-
-  if ! command -v jq >/dev/null 2>&1; then
-    fail "jq is required for seeding ~/.claude.json but was not found"
-  fi
-
-  # ── ~/.claude.json: onboarding + workspace trust ──────────────────────
-  # Merge with any existing content so we don't clobber fields claude
-  # may have already written (userID, firstStartTime, migration flags).
-  local existing='{}'
-  [[ -s "$config" ]] && existing=$(cat "$config")
-
-  printf '%s' "$existing" | jq --arg dir "$wsdir" '
-    .hasCompletedOnboarding = true
-    | .bypassPermissionsModeAccepted = true
-    | .projects = (.projects // {})
-    | .projects[$dir] = ((.projects[$dir] // {}) + {
-        hasTrustDialogAccepted: true,
-        hasCompletedProjectOnboarding: true,
-        allowedTools: (.projects[$dir].allowedTools // [])
-      })
-  ' > "$config.tmp" && mv "$config.tmp" "$config"
-
-  ok "seeded ~/.claude.json (onboarding + trust for $wsdir)"
-
-  # ── ~/.claude/settings.json: auto-allow the telegram plugin's tools ──
-  # Without this, the bot prompts the user (via Telegram) to approve
-  # every single reply/react/edit. Owner already trusts their own bot.
-  local settings="$HOME/.claude/settings.json"
-  mkdir -p "$(dirname "$settings")"
-  local existing_s='{}'
-  [[ -s "$settings" ]] && existing_s=$(cat "$settings")
-
-  printf '%s' "$existing_s" | jq '
-    .permissions = (.permissions // {})
-    | .permissions.allow = (
-        ((.permissions.allow // []) + [
-          "mcp__plugin_telegram_telegram__reply",
-          "mcp__plugin_telegram_telegram__react",
-          "mcp__plugin_telegram_telegram__edit_message",
-          "mcp__plugin_telegram_telegram__download_attachment"
-        ]) | unique
-      )
-  ' > "$settings.tmp" && mv "$settings.tmp" "$settings"
-
-  ok "auto-allowed telegram plugin tools in ~/.claude/settings.json"
 }
 
-# ─── Claude Code ──────────────────────────────────────────────────────────
+# ─── from lib/claude.sh ─────────────────────────────────────────────────
+# lib/claude.sh — Claude Code engine + Telegram plugin install + auth probe
+#
+# This module owns everything that talks to the `claude` CLI directly:
+# installing it, installing its plugin, seeding its first-run state,
+# checking whether it's authenticated. In 3.4.3 these get split between
+# a real engine adapter under lib/engines/claude-code.sh and engine-
+# agnostic glue. For now it's all here so 3.4.2 stays a pure split.
+#
+# Also defines the Claudify-layout constants that everything else
+# references. They live here because the layout exists *because* of
+# the engine — `~/.claudify/credentials.env` holds Claude OAuth, the
+# workspace is the engine's CWD, etc. 3.4.3 will reshuffle.
+#
+# Exposes:
+#   constants:
+#     NPM_PREFIX            — user-local npm prefix (avoids sudo for -g installs)
+#     CLAUDIFY_ROOT         — ~/.claudify
+#     CLAUDIFY_WORKSPACE    — ~/.claudify/workspace (claude WorkingDirectory)
+#     CLAUDIFY_TELEGRAM     — ~/.claudify/telegram (channel state dir)
+#     CREDS_FILE            — ~/.claudify/credentials.env (chmod 600 OAuth)
+#   functions:
+#     setup_npm_prefix      — point npm at NPM_PREFIX, persist PATH in ~/.bashrc
+#     install_claude        — npm install -g @anthropic-ai/claude-code (idempotent)
+#     install_telegram_plugin — register marketplace + install plugin (idempotent)
+#     seed_claude_state     — pre-accept onboarding/trust + auto-allow plugin tools
+#     claude_is_authed      — 0 if `claude auth status` says loggedIn:true
+
+# ─── Constants ────────────────────────────────────────────────────────────
+NPM_PREFIX="$HOME/.npm-global"
+
+# Everything Claudify owns lives under a single root so uninstall is
+# `rm -rf $CLAUDIFY_ROOT`. Claude Code's own user-wide state
+# (~/.claude, ~/.claude.json) stays where it is — it belongs to Claude.
+CLAUDIFY_ROOT="$HOME/.claudify"
+CLAUDIFY_WORKSPACE="$CLAUDIFY_ROOT/workspace"
+CLAUDIFY_TELEGRAM="$CLAUDIFY_ROOT/telegram"
+CREDS_FILE="$CLAUDIFY_ROOT/credentials.env"
+
+# ─── npm prefix ───────────────────────────────────────────────────────────
 # Set up a user-local npm prefix so global installs don't need sudo.
 setup_npm_prefix() {
   run "mkdir -p '$NPM_PREFIX'"
@@ -612,6 +583,7 @@ setup_npm_prefix() {
   fi
 }
 
+# ─── Claude Code ──────────────────────────────────────────────────────────
 install_claude() {
   step "Install Claude Code"
   setup_npm_prefix
@@ -647,63 +619,139 @@ install_telegram_plugin() {
   fi
 }
 
-# ─── Claudify layout ──────────────────────────────────────────────────────
-# Everything Claudify owns lives under a single root dir so uninstall is
-# `rm -rf $CLAUDIFY_ROOT`. Claude Code's own user-wide state (~/.claude,
-# ~/.claude.json) stays where it is — it belongs to Claude, not Claudify.
-CLAUDIFY_ROOT="$HOME/.claudify"
-CLAUDIFY_WORKSPACE="$CLAUDIFY_ROOT/workspace"
-CLAUDIFY_TELEGRAM="$CLAUDIFY_ROOT/telegram"
-CREDS_FILE="$CLAUDIFY_ROOT/credentials.env"
+# ─── Claude Code first-run state ──────────────────────────────────────────
+# On first launch, Claude Code's TUI asks about theme + workspace trust.
+# A systemd-spawned service has no one to answer those prompts, so it
+# sits forever and the channel plugin never spawns. We pre-seed the
+# state it would have written after a successful manual onboarding.
+#
+# Keys verified against Claude Code v2.1.116 binary strings:
+#   hasCompletedOnboarding                          (top-level, user-wide)
+#   projects[<abs-path>].hasTrustDialogAccepted     (per-workspace trust)
+#   projects[<abs-path>].hasCompletedProjectOnboarding
+_seed_claude_json() {
+  local config="$HOME/.claude.json"
+  local wsdir="$1"
 
-# ─── Config files (idempotent) ────────────────────────────────────────────
-write_configs() {
-  step "Write configuration"
+  # Merge with any existing content so we don't clobber fields claude
+  # may have already written (userID, firstStartTime, migration flags).
+  local existing='{}'
+  [[ -s "$config" ]] && existing=$(cat "$config")
 
-  local channels_dir="$CLAUDIFY_TELEGRAM"
-  run "mkdir -p '$channels_dir'"
+  printf '%s' "$existing" | jq --arg dir "$wsdir" '
+    .hasCompletedOnboarding = true
+    | .bypassPermissionsModeAccepted = true
+    | .projects = (.projects // {})
+    | .projects[$dir] = ((.projects[$dir] // {}) + {
+        hasTrustDialogAccepted: true,
+        hasCompletedProjectOnboarding: true,
+        allowedTools: (.projects[$dir].allowedTools // [])
+      })
+  ' > "$config.tmp" && mv "$config.tmp" "$config"
 
-  # .env (bot token)
-  local env_file="$channels_dir/.env"
-  if [[ -s "$env_file" && "$RESET_CONFIG" -ne 1 ]]; then
-    ok "bot token already configured (use --reset-config to overwrite)"
-  else
-    if [[ "$DRY_RUN" -eq 1 ]]; then
-      echo "  [DRY] write $env_file (chmod 600)"
-    else
-      printf 'TELEGRAM_BOT_TOKEN=%s\n' "$BOT_TOKEN" > "$env_file"
-      chmod 600 "$env_file"
-      ok "bot token written"
-    fi
+  ok "seeded ~/.claude.json (onboarding + trust for $wsdir)"
+}
+
+# Auto-allow the telegram plugin's tools. Without this the bot prompts
+# the user (via Telegram) to approve every reply/react/edit. Owner
+# already trusts their own bot.
+_seed_settings_json() {
+  local settings="$HOME/.claude/settings.json"
+  mkdir -p "$(dirname "$settings")"
+
+  local existing_s='{}'
+  [[ -s "$settings" ]] && existing_s=$(cat "$settings")
+
+  printf '%s' "$existing_s" | jq '
+    .permissions = (.permissions // {})
+    | .permissions.allow = (
+        ((.permissions.allow // []) + [
+          "mcp__plugin_telegram_telegram__reply",
+          "mcp__plugin_telegram_telegram__react",
+          "mcp__plugin_telegram_telegram__edit_message",
+          "mcp__plugin_telegram_telegram__download_attachment"
+        ]) | unique
+      )
+  ' > "$settings.tmp" && mv "$settings.tmp" "$settings"
+
+  ok "auto-allowed telegram plugin tools in ~/.claude/settings.json"
+}
+
+seed_claude_state() {
+  step "Seed Claude Code first-run state"
+
+  local wsdir="$CLAUDIFY_WORKSPACE"
+  mkdir -p "$wsdir"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [DRY] merge hasCompletedOnboarding + trust($wsdir) into ~/.claude.json"
+    echo "  [DRY] merge permissions.allow for telegram plugin tools into ~/.claude/settings.json"
+    return 0
   fi
 
-  # access.json (allowlist) — preserve existing, merge new ID
-  local access="$channels_dir/access.json"
-  if [[ -s "$access" && "$RESET_CONFIG" -ne 1 ]]; then
-    if command -v jq >/dev/null 2>&1; then
-      if jq -e --arg id "$TG_USER_ID" '.allowFrom // [] | index($id)' "$access" >/dev/null 2>&1; then
-        ok "allowlist already contains $TG_USER_ID (preserved)"
-      else
-        if [[ "$DRY_RUN" -eq 1 ]]; then
-          echo "  [DRY] jq merge $TG_USER_ID into existing $access"
-        else
-          local tmp; tmp="$(mktemp)"
-          jq --arg id "$TG_USER_ID" \
-             '.allowFrom = ((.allowFrom // []) + [$id] | unique)' \
-             "$access" > "$tmp"
-          mv "$tmp" "$access"
-          ok "added $TG_USER_ID to existing allowlist"
-        fi
-      fi
-    else
-      warn "access.json exists but jq is missing — skipping merge."
-      echo "    Install jq and re-run, or pass --reset-config to overwrite."
-    fi
-  else
+  if ! command -v jq >/dev/null 2>&1; then
+    fail "jq is required for seeding ~/.claude.json but was not found"
+  fi
+
+  _seed_claude_json "$wsdir"
+  _seed_settings_json
+}
+
+# ─── Auth probe ───────────────────────────────────────────────────────────
+# `claude auth status` emits JSON like:
+#   {"loggedIn": true, "authMethod": "claude.ai", ...}
+# We match the exact JSON field rather than guessing at phrasing.
+# Verified against Claude Code v2.1.114 on 2026-04-20.
+claude_is_authed() {
+  claude auth status 2>&1 | grep -qE '"loggedIn"[[:space:]]*:[[:space:]]*true'
+}
+
+# ─── from lib/configs.sh ─────────────────────────────────────────────────
+# lib/configs.sh — bot configuration files + workspace persona seed
+#
+# Two idempotent writes:
+#   1. ~/.claudify/telegram/.env       (TELEGRAM_BOT_TOKEN, chmod 600)
+#   2. ~/.claudify/telegram/access.json (allowlist; merge-on-update)
+# Plus the starter persona file at ~/.claudify/workspace/CLAUDE.md.
+#
+# Constants `CLAUDIFY_TELEGRAM`, `CLAUDIFY_WORKSPACE` come from
+# lib/claude.sh and are resolved at call time.
+#
+# Exposes:
+#   write_configs    — bot .env + allowlist (idempotent; --reset-config to overwrite)
+#   seed_persona     — starter CLAUDE.md (idempotent; never clobbers operator edits)
+
+# ─── Bot token .env ───────────────────────────────────────────────────────
+_write_bot_env() {
+  local env_file="$1"
+
+  if [[ -s "$env_file" && "$RESET_CONFIG" -ne 1 ]]; then
+    ok "bot token already configured (use --reset-config to overwrite)"
+    return 0
+  fi
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [DRY] write $env_file (chmod 600)"
+    return 0
+  fi
+
+  printf 'TELEGRAM_BOT_TOKEN=%s\n' "$BOT_TOKEN" > "$env_file"
+  chmod 600 "$env_file"
+  ok "bot token written"
+}
+
+# ─── access.json (allowlist) ──────────────────────────────────────────────
+# Preserve existing allowlist on update; merge the new ID in. Fresh
+# install (or --reset-config) overwrites.
+_write_access_json() {
+  local access="$1"
+
+  if [[ ! -s "$access" || "$RESET_CONFIG" -eq 1 ]]; then
     if [[ "$DRY_RUN" -eq 1 ]]; then
       echo "  [DRY] write $access"
-    else
-      cat > "$access" <<JSON
+      return 0
+    fi
+    cat > "$access" <<JSON
 {
   "dmPolicy": "allowlist",
   "allowFrom": ["$TG_USER_ID"],
@@ -711,82 +759,56 @@ write_configs() {
   "pending": {}
 }
 JSON
-      ok "allowlist written (user $TG_USER_ID)"
-    fi
+    ok "allowlist written (user $TG_USER_ID)"
+    return 0
   fi
-}
 
-# ─── systemd user service ─────────────────────────────────────────────────
-write_service() {
-  step "Install systemd service"
+  if ! command -v jq >/dev/null 2>&1; then
+    warn "access.json exists but jq is missing — skipping merge."
+    echo "    Install jq and re-run, or pass --reset-config to overwrite."
+    return 0
+  fi
 
-  local svc_dir="$HOME/.config/systemd/user"
-  local svc_path="$svc_dir/claude-telegram.service"
-  run "mkdir -p '$svc_dir'"
-  run "mkdir -p '$CLAUDIFY_WORKSPACE'"
+  if jq -e --arg id "$TG_USER_ID" '.allowFrom // [] | index($id)' "$access" >/dev/null 2>&1; then
+    ok "allowlist already contains $TG_USER_ID (preserved)"
+    return 0
+  fi
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "  [DRY] write $svc_path"
-  else
-    cat > "$svc_path" <<SVC
-[Unit]
-Description=Claudify — Telegram bot ($WORKSPACE)
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-# All per-bot state lives under ~/.claudify (self-contained; rm -rf to uninstall).
-# Leading '-' on EnvironmentFile makes it optional so the unit can be
-# written before oauth_setup populates credentials.env.
-EnvironmentFile=-%h/.claudify/credentials.env
-Environment=PATH=%h/.bun/bin:%h/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-Environment=HOME=%h
-Environment=TERM=xterm-256color
-Environment=TELEGRAM_STATE_DIR=%h/.claudify/telegram
-WorkingDirectory=%h/.claudify/workspace
-ExecStart=/usr/bin/script -qfec "claude --permission-mode bypassPermissions --channels plugin:telegram@claude-plugins-official" /dev/null
-Restart=on-failure
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=default.target
-SVC
-    ok "service unit written"
+    echo "  [DRY] jq merge $TG_USER_ID into existing $access"
+    return 0
   fi
 
-  if [[ "$DRY_RUN" -ne 1 ]]; then
-    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-    systemctl --user daemon-reload
-    systemctl --user enable claude-telegram.service >/dev/null 2>&1
-    ok "service enabled"
-  fi
+  local tmp; tmp="$(mktemp)"
+  jq --arg id "$TG_USER_ID" \
+     '.allowFrom = ((.allowFrom // []) + [$id] | unique)' \
+     "$access" > "$tmp"
+  mv "$tmp" "$access"
+  ok "added $TG_USER_ID to existing allowlist"
+}
+
+write_configs() {
+  step "Write configuration"
+
+  local channels_dir="$CLAUDIFY_TELEGRAM"
+  run "mkdir -p '$channels_dir'"
+
+  _write_bot_env     "$channels_dir/.env"
+  _write_access_json "$channels_dir/access.json"
 }
 
 # ─── Workspace persona (CLAUDE.md) ────────────────────────────────────────
-# Seed a starter ~/.claudify/workspace/CLAUDE.md so the bot has at least
-# a minimal persona out of the box. Never clobbers an existing file —
-# once the operator edits it, subsequent re-installs and updates preserve
-# their edits. This is what turns "generic Claude" into "my Claude."
-seed_persona() {
-  step "Seed workspace CLAUDE.md (persona)"
-
-  local persona="$CLAUDIFY_WORKSPACE/CLAUDE.md"
-
-  if [[ -s "$persona" ]]; then
-    ok "CLAUDE.md already present (preserved; edits kept)"
-    return 0
-  fi
-
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "  [DRY] write $persona"
-    return 0
-  fi
-
-  mkdir -p "$CLAUDIFY_WORKSPACE"
-  cat > "$persona" <<'PERSONA'
+# Seed a starter ~/.claudify/workspace/CLAUDE.md so the bot has at
+# least a minimal persona out of the box. Never clobbers an existing
+# file — once the operator edits it, subsequent re-installs and
+# updates preserve their edits. This is what turns "generic Claude"
+# into "my Claude."
+#
+# `_starter_persona_doc` is intentionally a data-only function (no
+# branches, no state). Its size is the size of the persona we ship,
+# not function complexity. Treat the heredoc body as data, not code.
+_starter_persona_doc() {
+  cat <<'PERSONA'
 # Hey Claude — you're my personal assistant.
 
 I reach you through my Telegram bot. This is your onboarding doc.
@@ -864,96 +886,94 @@ asking.
 When Claudify itself updates, the install log is at
 `/tmp/claudify-install-*.log`.
 PERSONA
+}
 
+seed_persona() {
+  step "Seed workspace CLAUDE.md (persona)"
+
+  local persona="$CLAUDIFY_WORKSPACE/CLAUDE.md"
+
+  if [[ -s "$persona" ]]; then
+    ok "CLAUDE.md already present (preserved; edits kept)"
+    return 0
+  fi
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [DRY] write $persona"
+    return 0
+  fi
+
+  mkdir -p "$CLAUDIFY_WORKSPACE"
+  _starter_persona_doc > "$persona"
   chmod 644 "$persona"
   ok "wrote starter persona to $persona"
   echo "    Edit it as I change how I want you to behave. Survives updates."
 }
 
-# ─── Claude OAuth ─────────────────────────────────────────────────────────
-# `claude auth status` emits JSON like:
-#   {"loggedIn": true, "authMethod": "claude.ai", ...}
-# We match the exact JSON field rather than guessing at phrasing.
-# Verified against Claude Code v2.1.114 on 2026-04-20.
-claude_is_authed() {
-  claude auth status 2>&1 | grep -qE '"loggedIn"[[:space:]]*:[[:space:]]*true'
-}
+# ─── from lib/service.sh ─────────────────────────────────────────────────
+# lib/service.sh — systemd user unit + service start + final summary
+#
+# Writes the user-mode systemd unit that runs `claude --channels …`
+# under /usr/bin/script (so claude sees a TTY), enables it, restarts
+# it, and verifies it stays up. Also owns the final-summary banner.
+#
+# The unit name is `claude-telegram.service` today. 3.4.5 (multi-
+# instance) renames it to `claudify-<instance>.service` with a
+# migration step. Don't rename here.
+#
+# Constant `CLAUDIFY_WORKSPACE` comes from lib/claude.sh.
+#
+# Exposes:
+#   write_service    — write + enable user systemd unit (idempotent)
+#   start_service    — restart + verify it stayed up after 3 s
+#   final_summary    — congratulatory output + useful commands
 
-# `claude setup-token` does NOT persist credentials. It generates a
-# long-lived OAuth token, prints it to the terminal, and expects the
-# operator to set CLAUDE_CODE_OAUTH_TOKEN in the environment of whoever
-# runs `claude`. For a systemd-supervised bot that means loading the
-# token from an EnvironmentFile on the unit — stored under
-# $CLAUDIFY_ROOT/credentials.env (defined at the top of this file).
+# ─── systemd user service ─────────────────────────────────────────────────
+write_service() {
+  step "Install systemd service"
 
-oauth_setup() {
-  step "Authenticate Claude (one-time)"
-
-  # Preserve-state (update.sh path): if credentials.env exists we trust
-  # the operator's current token even if claude auth status disagrees.
-  # They'd fix it explicitly with a fresh install, not via an update.
-  if [[ "${PRESERVE_STATE:-0}" -eq 1 && -s "$CREDS_FILE" ]]; then
-    ok "credentials.env present (preserved; not re-exchanging OAuth)"
-    return 0
-  fi
-
-  # Already authed? Either from a prior install or from CLAUDE_CODE_OAUTH_TOKEN
-  # already in the environment. Don't re-run setup-token.
-  if [[ -s "$CREDS_FILE" ]]; then
-    # shellcheck disable=SC1090
-    set -a; . "$CREDS_FILE"; set +a
-  fi
-  if claude_is_authed; then
-    ok "Claude is already authenticated"
-    return 0
-  fi
-
-  c_yellow "  Claude needs a one-time OAuth login."
-  echo "    A URL will appear below. Open it in a browser, log in to your"
-  echo "    Claude subscription, and paste the resulting code back here."
-  echo "    Claudify will then save the long-lived token for the systemd service."
-  echo
+  local svc_dir="$HOME/.config/systemd/user"
+  local svc_path="$svc_dir/claude-telegram.service"
+  run "mkdir -p '$svc_dir'"
+  run "mkdir -p '$CLAUDIFY_WORKSPACE'"
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "  [DRY] would run: claude setup-token"
-    echo "  [DRY] would write $CREDS_FILE"
-    return 0
-  fi
-
-  # Run setup-token. Its output is already being tee'd to LOG_FILE by
-  # ui.sh's setup_logging, so the long-lived token ends up captured there.
-  if [[ -n "$TTY_DEV" ]]; then
-    claude setup-token < "$TTY_DEV" || fail "claude setup-token failed"
+    echo "  [DRY] write $svc_path"
   else
-    claude setup-token || fail "claude setup-token failed"
+    cat > "$svc_path" <<SVC
+[Unit]
+Description=Claudify — Telegram bot ($WORKSPACE)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# All per-bot state lives under ~/.claudify (self-contained; rm -rf to uninstall).
+# Leading '-' on EnvironmentFile makes it optional so the unit can be
+# written before oauth_setup populates credentials.env.
+EnvironmentFile=-%h/.claudify/credentials.env
+Environment=PATH=%h/.bun/bin:%h/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=HOME=%h
+Environment=TERM=xterm-256color
+Environment=TELEGRAM_STATE_DIR=%h/.claudify/telegram
+WorkingDirectory=%h/.claudify/workspace
+ExecStart=/usr/bin/script -qfec "claude --permission-mode bypassPermissions --channels plugin:telegram@claude-plugins-official" /dev/null
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+SVC
+    ok "service unit written"
   fi
 
-  # Parse the sk-ant-oat01-... token out of the log we just appended to.
-  local token
-  token=$(grep -oE 'sk-ant-oat01-[A-Za-z0-9_-]+' "$LOG_FILE" | tail -1)
-  if [[ -z "$token" ]]; then
-    warn "Couldn't parse a long-lived token from setup-token output."
-    echo "    Look for 'sk-ant-oat01-...' in $LOG_FILE and save it manually:"
-    echo "        echo 'CLAUDE_CODE_OAUTH_TOKEN=<token>' > $CREDS_FILE"
-    echo "        chmod 600 $CREDS_FILE"
-    fail "Auth setup incomplete"
-  fi
-
-  # Persist for systemd (via EnvironmentFile on the unit) and export for
-  # this shell so claude_is_authed can verify.
-  mkdir -p "$(dirname "$CREDS_FILE")"
-  umask 077
-  printf 'CLAUDE_CODE_OAUTH_TOKEN=%s\n' "$token" > "$CREDS_FILE"
-  chmod 600 "$CREDS_FILE"
-  export CLAUDE_CODE_OAUTH_TOKEN="$token"
-  ok "OAuth token saved to $CREDS_FILE (mode 600)"
-
-  if claude_is_authed; then
-    ok "Claude authenticated"
-  else
-    warn "Token saved but 'claude auth status' still reports not-logged-in:"
-    claude auth status 2>&1 | sed 's/^/    /'
-    fail "Unexpected — check $LOG_FILE"
+  if [[ "$DRY_RUN" -ne 1 ]]; then
+    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+    systemctl --user daemon-reload
+    systemctl --user enable claude-telegram.service >/dev/null 2>&1
+    ok "service enabled"
   fi
 }
 
@@ -1008,6 +1028,100 @@ final_summary() {
   echo
   echo "  Install log: $LOG_FILE"
   echo
+}
+
+# ─── from lib/oauth.sh ─────────────────────────────────────────────────
+# lib/oauth.sh — Claude OAuth setup + token persistence for systemd
+#
+# `claude setup-token` prints a long-lived OAuth token to the terminal
+# but does NOT persist it. The bot service needs it via an
+# EnvironmentFile, so this module captures the token from the install
+# log (which ui.sh's setup_logging is tee-ing) and writes it to
+# $CREDS_FILE with chmod 600.
+#
+# Constants `CREDS_FILE`, `LOG_FILE`, `TTY_DEV` come from lib/claude.sh
+# and lib/ui.sh / lib/prompts.sh respectively. `claude_is_authed` lives
+# in lib/claude.sh.
+#
+# Exposes:
+#   oauth_setup    — idempotent: skip if already authed, else run setup-token + persist
+
+# Run claude setup-token interactively. Output is being tee'd to
+# LOG_FILE by ui.sh's setup_logging — that's how we recover the token
+# afterwards.
+_run_setup_token() {
+  if [[ -n "$TTY_DEV" ]]; then
+    claude setup-token < "$TTY_DEV" || fail "claude setup-token failed"
+  else
+    claude setup-token || fail "claude setup-token failed"
+  fi
+}
+
+# Parse the long-lived sk-ant-oat01-… token out of LOG_FILE and write
+# it to $CREDS_FILE so systemd can pick it up via EnvironmentFile.
+_persist_oauth_token() {
+  local token
+  token=$(grep -oE 'sk-ant-oat01-[A-Za-z0-9_-]+' "$LOG_FILE" | tail -1)
+  if [[ -z "$token" ]]; then
+    warn "Couldn't parse a long-lived token from setup-token output."
+    echo "    Look for 'sk-ant-oat01-...' in $LOG_FILE and save it manually:"
+    echo "        echo 'CLAUDE_CODE_OAUTH_TOKEN=<token>' > $CREDS_FILE"
+    echo "        chmod 600 $CREDS_FILE"
+    fail "Auth setup incomplete"
+  fi
+
+  mkdir -p "$(dirname "$CREDS_FILE")"
+  umask 077
+  printf 'CLAUDE_CODE_OAUTH_TOKEN=%s\n' "$token" > "$CREDS_FILE"
+  chmod 600 "$CREDS_FILE"
+  export CLAUDE_CODE_OAUTH_TOKEN="$token"
+  ok "OAuth token saved to $CREDS_FILE (mode 600)"
+}
+
+oauth_setup() {
+  step "Authenticate Claude (one-time)"
+
+  # Preserve-state (update.sh path): if credentials.env exists we
+  # trust the operator's current token even if claude auth status
+  # disagrees. They'd fix it via a fresh install, not via update.
+  if [[ "${PRESERVE_STATE:-0}" -eq 1 && -s "$CREDS_FILE" ]]; then
+    ok "credentials.env present (preserved; not re-exchanging OAuth)"
+    return 0
+  fi
+
+  # Already authed? Either from a prior install or from
+  # CLAUDE_CODE_OAUTH_TOKEN already in the environment.
+  if [[ -s "$CREDS_FILE" ]]; then
+    # shellcheck disable=SC1090
+    set -a; . "$CREDS_FILE"; set +a
+  fi
+  if claude_is_authed; then
+    ok "Claude is already authenticated"
+    return 0
+  fi
+
+  c_yellow "  Claude needs a one-time OAuth login."
+  echo "    A URL will appear below. Open it in a browser, log in to your"
+  echo "    Claude subscription, and paste the resulting code back here."
+  echo "    Claudify will then save the long-lived token for the systemd service."
+  echo
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [DRY] would run: claude setup-token"
+    echo "  [DRY] would write $CREDS_FILE"
+    return 0
+  fi
+
+  _run_setup_token
+  _persist_oauth_token
+
+  if claude_is_authed; then
+    ok "Claude authenticated"
+  else
+    warn "Token saved but 'claude auth status' still reports not-logged-in:"
+    claude auth status 2>&1 | sed 's/^/    /'
+    fail "Unexpected — check $LOG_FILE"
+  fi
 }
 
 # ─── main ────────────────────────────────────────────────────────

@@ -35,7 +35,11 @@ LIB_DIR="$SCRIPT_DIR/lib"
 #   prompts.sh    — TTY detect + ask family (depends on fail)
 #   validate.sh   — pure validators
 #   preflight.sh  — uses ui + prompts
-#   steps.sh      — uses everything above
+#   onboarding.sh — intro, BotFather/userinfobot walkthroughs, collect_inputs
+#   claude.sh     — claudify-layout constants + claude install + plugin + seed + authed?
+#   configs.sh    — bot .env + access.json + workspace persona (CLAUDE.md)
+#   service.sh    — systemd unit write/start + final summary
+#   oauth.sh      — claude setup-token + token capture (uses claude_is_authed)
 # shellcheck source=lib/ui.sh
 source "$LIB_DIR/ui.sh"
 # shellcheck source=lib/args.sh
@@ -46,8 +50,16 @@ source "$LIB_DIR/prompts.sh"
 source "$LIB_DIR/validate.sh"
 # shellcheck source=lib/preflight.sh
 source "$LIB_DIR/preflight.sh"
-# shellcheck source=lib/steps.sh
-source "$LIB_DIR/steps.sh"
+# shellcheck source=lib/onboarding.sh
+source "$LIB_DIR/onboarding.sh"
+# shellcheck source=lib/claude.sh
+source "$LIB_DIR/claude.sh"
+# shellcheck source=lib/configs.sh
+source "$LIB_DIR/configs.sh"
+# shellcheck source=lib/service.sh
+source "$LIB_DIR/service.sh"
+# shellcheck source=lib/oauth.sh
+source "$LIB_DIR/oauth.sh"
 
 main() {
   parse_args "$@"          # may exit on --help / --version

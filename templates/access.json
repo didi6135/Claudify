@@ -1,8 +1,0 @@
-{
-  "dmPolicy": "allowlist",
-  "allowFrom": [
-    "{{ALLOWED_USER_ID}}"
-  ],
-  "groups": {},
-  "pending": {}
-}

@@ -1,0 +1,16 @@
+{
+  "name": "claudify-src",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript modules for Claudify (backup/restore, manifest helpers). Run via Bun.",
+  "scripts": {
+    "test": "bun test ../tests/ts/",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {}
+}

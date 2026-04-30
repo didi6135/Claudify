@@ -130,9 +130,12 @@ Source layout:
 |---|---|
 | `install.sh` | thin orchestrator (modular development form) |
 | `lib/*.sh` | bash modules sourced by `install.sh` |
+| `lib/engines/` | engine adapters (`claude-code.sh`, …) — see `docs/architecture.md §6` |
 | `build.sh` | concatenates `lib/` + `install.sh` → `dist/install.sh` |
 | `dist/install.sh` | the single-file installer that curl serves |
-| `templates/` | systemd service + access.json reference |
+| `src/` | TypeScript modules (Bun) — `backup`/`restore` helpers |
+| `tests/` | `tests/bash/` (bats) + `tests/ts/` (bun test) |
+| `test.sh` | repo-root entry that runs both test suites |
 | `docs/` | user-facing documentation |
 | `.planning/` | project planning, roadmap, ADRs |
 
@@ -143,6 +146,14 @@ bash build.sh
 ```
 
 …to regenerate `dist/install.sh` (the file curl users actually fetch).
+
+To run the test suites:
+
+```bash
+bash test.sh                 # both suites; warn-skips a missing runner
+bash test.sh --bash          # bash only (bats)
+bash test.sh --ts            # TS only (bun test)
+```
 
 Conventions: [.planning/conventions.md](.planning/conventions.md).
 Architectural decisions: [.planning/decisions/](.planning/decisions/).

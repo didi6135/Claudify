@@ -27,7 +27,11 @@ MODULES=(
   prompts.sh
   validate.sh
   preflight.sh
-  steps.sh
+  onboarding.sh
+  claude.sh
+  configs.sh
+  service.sh
+  oauth.sh
 )
 
 # Pull SCRIPT_VERSION out of install.sh so dist matches.
