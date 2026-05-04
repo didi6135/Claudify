@@ -22,11 +22,22 @@ installing Claude Code, configuring the systemd service, completing
 Claude OAuth. **First install takes about 3–5 minutes.**
 
 **Safe to Ctrl-C anytime.** If you stop mid-install (network drop,
-second thoughts, anything), just re-run the same curl command. Your
-bot token, Telegram user ID, and workspace name are saved to
-`~/.claudify/.install-partial` (chmod 600) the moment you finish
-typing them, so re-runs pick up exactly where they stopped — no flag,
-no prompt, no re-paste.
+second thoughts, anything), just re-run the same curl command. Each
+input you've already typed (bot token, Telegram user ID, workspace
+name) is saved to `~/.claudify/.install-partial` (chmod 600)
+progressively as you go. On re-run you get a quick prompt:
+
+```
+  Found saved progress from a previous install attempt:
+    • Telegram bot token (saved)
+  Continue from previous attempt? (No deletes the saved progress) [Y/n]
+```
+
+Press ENTER (or type `y`) to continue from where you stopped — the
+installer skips any prompts you'd already answered and only asks
+about the inputs that are still missing. Type `n` and the saved
+progress is wiped and you start fresh. The partial-state file is also
+removed automatically on a successful finish.
 
 ### Preview without changing anything
 

@@ -88,29 +88,45 @@ _partial_state_path() {
   printf '%s/%s' "$CLAUDIFY_ROOT" "$PARTIAL_STATE_FILE_NAME"
 }
 
-# Write whatever the operator just pasted to disk so a Ctrl-C between
-# now and `write_configs` doesn't waste their input. Caller is
-# `_collect_inputs_fresh` after every prompt has succeeded.
+# Write whatever inputs are currently set to disk so a Ctrl-C from
+# this moment forward doesn't waste them. Called *progressively* from
+# `_collect_inputs_fresh` after EACH input lands — so even if the
+# operator stops half-way through (token pasted, user-ID still TBD),
+# what they did paste survives.
+#
+# Only writes lines for set-and-non-empty vars, so the file's content
+# tracks "what's actually known so far" rather than mixing real values
+# with empty placeholders.
 _write_partial_state() {
   local f
   f="$(_partial_state_path)"
   mkdir -p "$CLAUDIFY_ROOT"
   umask 077
   {
-    printf 'BOT_TOKEN=%s\n'  "$BOT_TOKEN"
-    printf 'TG_USER_ID=%s\n' "$TG_USER_ID"
-    printf 'WORKSPACE=%s\n'  "$WORKSPACE"
+    [[ -n "${BOT_TOKEN:-}"  ]] && printf 'BOT_TOKEN=%s\n'  "$BOT_TOKEN"
+    [[ -n "${TG_USER_ID:-}" ]] && printf 'TG_USER_ID=%s\n' "$TG_USER_ID"
+    [[ -n "${WORKSPACE:-}"  ]] && printf 'WORKSPACE=%s\n'  "$WORKSPACE"
   } > "$f"
   chmod 600 "$f"
 }
 
-# If a prior interrupted run left a partial-state file, source it
-# silently and announce one green line. Returns 0 if it loaded a full
-# set (caller can skip prompting), 1 otherwise.
+# If a prior interrupted run left a partial-state file, ask the
+# operator whether to continue from there or start fresh. The file
+# may hold any subset of the three inputs (bot token only, token +
+# user ID, or all three).
+#
+#   continue → values get sourced (env vars still win), missing
+#              fields get prompted for by _collect_inputs_fresh
+#   fresh    → file is wiped, all prompts fire normally
+#
+# Returns 0 only if everything is now populated (caller can short-
+# circuit); returns 1 if anything is still missing.
 #
 # Skipped intentionally:
-#   - DRY_RUN=1     (don't read state during a preview)
+#   - DRY_RUN=1         (don't read state during a preview)
 #   - PRESERVE_STATE=1  (update flow has its own source-of-truth)
+#   - NON_INTERACTIVE=1 (no prompt; default to continuing — automation
+#                        expects stable behaviour)
 _load_partial_state() {
   [[ "${DRY_RUN:-0}"        -eq 1 ]] && return 1
   [[ "${PRESERVE_STATE:-0}" -eq 1 ]] && return 1
@@ -119,23 +135,59 @@ _load_partial_state() {
   f="$(_partial_state_path)"
   [[ -s "$f" ]] || return 1
 
-  # Only resume if the operator hasn't pre-filled any of the three
-  # via env vars — env wins, and partial file then gets refreshed at
-  # the end of _collect_inputs_fresh anyway.
-  [[ -n "${BOT_TOKEN:-}"  ]] && return 1
-  [[ -n "${TG_USER_ID:-}" ]] && return 1
-  [[ -n "${WORKSPACE:-}"  ]] && return 1
+  # Show what's saved (no values — just which fields were captured).
+  echo
+  c_cyan "  Found saved progress from a previous install attempt:"
+  while IFS='=' read -r key _; do
+    case "$key" in
+      BOT_TOKEN)  echo "    • Telegram bot token (saved)" ;;
+      TG_USER_ID) echo "    • Telegram user ID (saved)"   ;;
+      WORKSPACE)  echo "    • Workspace name (saved)"     ;;
+    esac
+  done < "$f"
+  echo
+
+  # Ask. In --non-interactive mode, ask_yn falls back to the default
+  # without prompting — so automation behaves stably (continues).
+  if ! ask_yn "Continue from previous attempt? (No deletes the saved progress)" "y"; then
+    clear_partial_state
+    ok "starting fresh — saved progress deleted"
+    return 1
+  fi
+
+  # Don't override anything the operator pre-set via env vars — those
+  # win. We just fill in what's still empty.
+  local pre_bot="${BOT_TOKEN:-}"
+  local pre_uid="${TG_USER_ID:-}"
+  local pre_ws="${WORKSPACE:-}"
 
   # shellcheck disable=SC1090
   set -a; . "$f"; set +a
 
-  if [[ -z "$BOT_TOKEN" || -z "$TG_USER_ID" || -z "$WORKSPACE" ]]; then
-    # Corrupt or partial — pretend we didn't see it.
+  [[ -n "$pre_bot" ]] && BOT_TOKEN="$pre_bot"
+  [[ -n "$pre_uid" ]] && TG_USER_ID="$pre_uid"
+  [[ -n "$pre_ws"  ]] && WORKSPACE="$pre_ws"
+
+  # Build a human-readable list of what was actually resumed (only
+  # what came from the file, not what was already in env).
+  local resumed=""
+  [[ -z "$pre_bot" && -n "${BOT_TOKEN:-}"  ]] && resumed+="BOT_TOKEN "
+  [[ -z "$pre_uid" && -n "${TG_USER_ID:-}" ]] && resumed+="TG_USER_ID "
+  [[ -z "$pre_ws"  && -n "${WORKSPACE:-}"  ]] && resumed+="WORKSPACE "
+
+  if [[ -z "$resumed" ]]; then
     return 1
   fi
 
-  ok "resumed from previous attempt — using saved BOT_TOKEN, TG_USER_ID, WORKSPACE"
-  return 0
+  ok "resumed: ${resumed% }"
+
+  # Short-circuit only if all three are populated; otherwise fall
+  # through so _collect_inputs_fresh prompts for whatever's still
+  # missing.
+  if [[ -n "${BOT_TOKEN:-}" && -n "${TG_USER_ID:-}" && -n "${WORKSPACE:-}" ]]; then
+    return 0
+  fi
+  return 1
 }
 
 # Called by args.sh when --reset-config is set, and by service.sh's
@@ -171,6 +223,10 @@ _collect_inputs_preserved() {
 
 # Fresh install: prompt for whichever inputs aren't pre-filled via env.
 # Each prompt skips its walkthrough if the value is already in the env.
+#
+# Persists progressively after EACH input so a Ctrl-C anywhere in the
+# middle of this function still saves whatever the operator typed up
+# to that point.
 _collect_inputs_fresh() {
   if [[ -z "${BOT_TOKEN:-}" ]]; then
     guide_botfather
@@ -180,6 +236,7 @@ _collect_inputs_fresh() {
     BOT_TOKEN validate_bot_token \
     "Format: digits, colon, then characters (e.g. 1234567890:ABC-...)"
   ok "bot token format valid"
+  _write_partial_state
 
   if [[ -z "${TG_USER_ID:-}" ]]; then
     guide_userinfobot
@@ -188,15 +245,13 @@ _collect_inputs_fresh() {
     "Paste your Telegram user ID (numeric)" \
     "" TG_USER_ID validate_user_id \
     "Must be all digits."
+  _write_partial_state
 
   echo
   ask_validated \
     "Workspace folder name" \
     "claude-bot" WORKSPACE validate_workspace \
     "Letters, digits, dot, underscore, hyphen only — no spaces."
-
-  # Persist immediately so a Ctrl-C between here and write_configs
-  # doesn't lose what the operator just typed.
   _write_partial_state
 }
 

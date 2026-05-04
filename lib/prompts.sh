@@ -10,6 +10,8 @@
 #   ask_secret   <prompt> <varname>                     — hidden input
 #   ask_validated <prompt> <default> <var> <fn> <hint>  — loop until valid
 #   ask_secret_validated <prompt> <var> <fn> <hint>     — same, hidden
+#   ask_yn       <prompt> <default-y-or-n>              — returns 0 (yes) / 1 (no)
+#   wait_enter   [<prompt>]                             — pause until ENTER
 
 TTY_DEV=""
 
@@ -71,6 +73,27 @@ ask_secret_validated() {
     warn "$hint"
     unset "$varname"
   done
+}
+
+# Yes/no prompt. Returns 0 for yes, 1 for no.
+#   default = "y" → empty input means yes
+#   default = "n" → empty input means no
+#
+# When there's no TTY (curl | bash through a non-interactive pipe),
+# falls back to whatever the default would be without asking.
+ask_yn() {
+  local prompt="$1" default="${2:-y}"
+  local hint="[Y/n]"
+  [[ "$default" =~ ^[Nn]$ ]] && hint="[y/N]"
+
+  if [[ -z "$TTY_DEV" ]]; then
+    [[ "$default" =~ ^[Yy]$ ]] && return 0 || return 1
+  fi
+
+  local input
+  read -r -p "  $prompt $hint " input < "$TTY_DEV"
+  input="${input:-$default}"
+  [[ "$input" =~ ^[Yy] ]]
 }
 
 # Pause the flow until the user hits ENTER. Any typed input is discarded.

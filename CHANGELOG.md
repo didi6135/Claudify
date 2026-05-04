@@ -14,15 +14,20 @@ fresh Unreleased block goes back on top.
 ### Added
 
 - **Resumable install.** If `install.sh` is interrupted (Ctrl-C,
-  network drop, lost SSH session, etc.) after the operator has typed
-  their bot token + Telegram user ID + workspace name, those inputs
-  are now saved to `~/.claudify/.install-partial` (chmod 600) the
-  moment they're collected. Re-running the install picks up exactly
-  where it stopped — no `--resume` flag, no "Would you like to
-  resume?" prompt, no re-paste. The file is removed on successful
-  finish (in `final_summary`) and on `--reset-config`. Honours
-  `--preserve-state` and pre-set env vars (those win over the
-  partial state). See task spec
+  network drop, lost SSH session, etc.), each input the operator has
+  typed (`BOT_TOKEN`, `TG_USER_ID`, `WORKSPACE`) is persisted
+  progressively to `~/.claudify/.install-partial` (chmod 600) — so
+  even stopping mid-way through the prompts saves what's already
+  done. On re-run, the installer detects the partial file and asks
+  `Continue from previous attempt? (No deletes the saved progress)`.
+  Pressing ENTER continues — already-collected inputs are reused and
+  only the missing ones get prompted for. Saying `n` wipes the file
+  and starts fresh. The file is also removed automatically on
+  successful finish (in `final_summary`) and on `--reset-config`.
+  `--non-interactive` skips the prompt and continues by default
+  (automation-stable). `--preserve-state` ignores the partial file
+  entirely (update flow uses `~/.claudify/telegram/.env` as truth).
+  Pre-set env vars still win over saved values. See task spec at
   `.planning/phases/phase-3-tasks/3.4.2.1-resume-install.md`.
 
 ### Fixed
