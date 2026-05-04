@@ -101,6 +101,9 @@ final_summary() {
     return
   fi
 
+  # Install finished cleanly — drop the resume crumbs.
+  clear_partial_state
+
   c_green "╭────────────────────────────────────────────────────────────╮"
   banner_line "Claudify  —  install complete" "\033[32m"
   c_green "╰────────────────────────────────────────────────────────────╯"

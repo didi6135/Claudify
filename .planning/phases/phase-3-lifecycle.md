@@ -129,6 +129,11 @@ model and the codebase is in long-term shape.
    `onboarding.sh`, `configs.sh`, `service.sh`, `oauth.sh`,
    `manifest.sh`. Update `install.sh` source order + `build.sh`
    MODULES list. `bash -n` + smoke test on Station11.
+2.1. **Resume interrupted install** — write inputs to
+   `~/.claudify/.install-partial` (chmod 600) the moment they're
+   collected, source on re-run if present. No flags, no prompts.
+   Re-running picks up where Ctrl-C dropped. See
+   [3.4.2.1](phase-3-tasks/3.4.2.1-resume-install.md).
 3. **Engine abstraction** — extract Claude-specific code into
    `lib/engines/claude-code.sh` implementing the 6-function contract
    (`engine_install`, `engine_auth_check`, `engine_auth_setup`,

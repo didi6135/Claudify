@@ -13,9 +13,10 @@ verify done.
 
 | Task | Title | Status | Estimated | Depends on | Blocks |
 |---|---|---|---|---|---|
-| 3.4.1 | [Repo skeleton](3.4.1-skeleton.md) | ⏳ next | ~30 min | — | all of 3.4 |
-| 3.4.2 | [Split lib/steps.sh](3.4.2-split-steps.md) | ⏳ pending | ~1 hr | 3.4.1 | 3.4.3 |
-| 3.4.3 | [Engine abstraction](3.4.3-engine-abstraction.md) | ⏳ pending | ~1.5 hr | 3.4.2 | 3.4.5 |
+| 3.4.1 | [Repo skeleton](3.4.1-skeleton.md) | ✅ done 2026-04-28 | ~30 min | — | all of 3.4 |
+| 3.4.2 | [Split lib/steps.sh](3.4.2-split-steps.md) | ✅ done 2026-04-30 | ~1 hr | 3.4.1 | 3.4.3 |
+| 3.4.2.1 | [Resume interrupted install](3.4.2.1-resume-install.md) | ✅ done 2026-05-04 | ~30 min | 3.4.2 | — |
+| 3.4.3 | [Engine abstraction](3.4.3-engine-abstraction.md) | ⏳ next | ~1.5 hr | 3.4.2 | 3.4.5 |
 | 3.4.4 | [Manifest files](3.4.4-manifest.md) | ⏳ pending | ~1 hr | 3.4.2 | 3.4.5 |
 | 3.4.5 | [Multi-instance layout](3.4.5-multi-instance.md) | ⏳ pending | ~1.5 hr | 3.4.3, 3.4.4 | 3.4.6, 3.4.7 |
 | 3.4.6 | [Personal command wrapper](3.4.6-personal-cmd.md) | ⏳ pending | ~45 min | 3.4.5 | 3.4.8 |
@@ -25,6 +26,12 @@ verify done.
 | 3.6 | [Security hardening pass](3.6-security.md) | ⏳ pending | ~1-2 hrs | 3.5 | — |
 
 **Total estimated effort:** ~12-15 hours across multiple sessions.
+
+> **Inserted decimal tasks** (e.g. 3.4.2.1) are small, self-contained
+> work that surfaces between numbered tasks. Used when a real UX gap
+> shows up mid-phase and waiting for the next planned task would
+> compound the friction. They get the same spec template as the
+> numbered tasks.
 
 ## Task file template
 

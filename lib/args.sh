@@ -55,6 +55,15 @@ parse_args() {
     esac
     shift
   done
+
+  # --reset-config means "start clean" — wipe the resume crumbs too,
+  # otherwise we'd silently re-load a stale BOT_TOKEN the operator
+  # was trying to overwrite. clear_partial_state lives in
+  # lib/onboarding.sh and is safe to call before sourcing finishes
+  # because it's a function definition (resolved at call time).
+  if [[ "$RESET_CONFIG" -eq 1 ]]; then
+    clear_partial_state 2>/dev/null || true
+  fi
 }
 
 # Run a command unless DRY_RUN=1, in which case echo it instead.

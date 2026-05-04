@@ -11,6 +11,20 @@ fresh Unreleased block goes back on top.
 
 ## [Unreleased]
 
+### Added
+
+- **Resumable install.** If `install.sh` is interrupted (Ctrl-C,
+  network drop, lost SSH session, etc.) after the operator has typed
+  their bot token + Telegram user ID + workspace name, those inputs
+  are now saved to `~/.claudify/.install-partial` (chmod 600) the
+  moment they're collected. Re-running the install picks up exactly
+  where it stopped — no `--resume` flag, no "Would you like to
+  resume?" prompt, no re-paste. The file is removed on successful
+  finish (in `final_summary`) and on `--reset-config`. Honours
+  `--preserve-state` and pre-set env vars (those win over the
+  partial state). See task spec
+  `.planning/phases/phase-3-tasks/3.4.2.1-resume-install.md`.
+
 ### Fixed
 
 - **`claude setup-token` rendering as stacked splash screens during
