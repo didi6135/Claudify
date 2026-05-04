@@ -26,15 +26,16 @@ single self-contained `dist/install.sh`.
 |---|---|---|
 | `ui.sh` | colors + status helpers + log file setup | `c_red/green/yellow/cyan/bold`, `step`, `ok`, `ok_done` (dry-run-aware), `warn`, `fail`, `banner_line`, `print_banner`, `setup_logging`, `LOG_FILE` |
 | `args.sh` | CLI flag parsing + dry-run helper | `parse_args`, `show_help`, `run`, `DRY_RUN`, `RESET_CONFIG` |
-| `prompts.sh` | TTY-safe interactive prompts | `detect_tty`, `ask`, `ask_secret`, `ask_validated`, `ask_secret_validated`, `TTY_DEV` |
+| `prompts.sh` | TTY-safe interactive prompts | `detect_tty`, `ask`, `ask_secret`, `ask_validated`, `ask_secret_validated`, `ask_yn`, `wait_enter`, `TTY_DEV` |
 | `validate.sh` | input format validators | `validate_bot_token`, `validate_user_id`, `validate_workspace` |
 | `preflight.sh` | pre-install checks + auto-install of missing deps | `preflight_os`, `preflight_prereqs`, `preflight_linger`, `offer_apt_install`, `install_node` |
-| `onboarding.sh` | welcome banner + Telegram walkthroughs + input collection | `intro`, `guide_botfather`, `guide_userinfobot`, `collect_inputs` |
-| `claude.sh` | Claude Code engine + plugin install + auth probe + Claudify-layout constants (TEMP — gets split in 3.4.3 between `lib/engines/claude-code.sh` and engine-agnostic glue) | constants `NPM_PREFIX`, `CLAUDIFY_ROOT`, `CLAUDIFY_WORKSPACE`, `CLAUDIFY_TELEGRAM`, `CREDS_FILE`; functions `setup_npm_prefix`, `install_claude`, `install_telegram_plugin`, `seed_claude_state`, `claude_is_authed` |
+| `layout.sh` | Claudify on-disk paths (engine-agnostic) | `CLAUDIFY_ROOT`, `CLAUDIFY_WORKSPACE`, `CLAUDIFY_TELEGRAM`, `CREDS_FILE` |
+| `engine.sh` | picks the engine adapter, sources `lib/engines/<id>.sh` into scope | `CLAUDIFY_ENGINE`, `engine_id` |
+| `onboarding.sh` | welcome banner + Telegram walkthroughs + resumable input collection | `intro`, `guide_botfather`, `guide_userinfobot`, `collect_inputs`, `clear_partial_state` |
 | `configs.sh` | bot `.env` + allowlist + starter persona | `write_configs`, `seed_persona` |
-| `service.sh` | systemd user unit + start + final summary | `write_service`, `start_service`, `final_summary` |
-| `oauth.sh` | claude OAuth setup + long-lived token capture for systemd | `oauth_setup` |
-| `engines/` | engine adapters (one file per LLM CLI) — see `lib/engines/README.md` and `docs/architecture.md §6` | each adapter exposes the 6-function contract: `engine_install`, `engine_auth_check`, `engine_auth_setup`, `engine_run_args`, `engine_status`, `engine_uninstall` |
+| `service.sh` | systemd user unit + start + final summary | `write_service`, `start_service`, `final_summary` (uses `engine_run_args`) |
+| `oauth.sh` | engine-agnostic OAuth orchestration | `oauth_setup` (delegates token capture to `engine_auth_setup`) |
+| `engines/` | engine adapters (one file per LLM CLI) — see `lib/engines/README.md` and `docs/architecture.md §6` | each adapter exposes the contract: `engine_install`, `engine_seed_state`, `engine_install_channel_plugin`, `engine_auth_check`, `engine_auth_setup`, `engine_run_args`, `engine_status`, `engine_uninstall` |
 
 ## When to split a module further
 

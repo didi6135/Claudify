@@ -20,15 +20,21 @@ LIB_DIR="$SCRIPT_DIR/lib"
 OUT_DIR="$SCRIPT_DIR/dist"
 OUT="$OUT_DIR/install.sh"
 
-# Order must match the source order in install.sh
+# Order must match the source order in install.sh.
+# Engine adapters under lib/engines/ are concatenated *before*
+# lib/engine.sh so the adapter's functions exist by the time the
+# dispatcher's "if not declared, source it" check runs (it's a no-op
+# in dist mode because functions are already defined).
 MODULES=(
   ui.sh
   args.sh
   prompts.sh
   validate.sh
   preflight.sh
+  layout.sh
+  engines/claude-code.sh
+  engine.sh
   onboarding.sh
-  claude.sh
   configs.sh
   service.sh
   oauth.sh

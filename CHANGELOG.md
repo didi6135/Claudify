@@ -32,6 +32,12 @@ fresh Unreleased block goes back on top.
 
 ### Fixed
 
+- **`set -u` crash in `_collect_inputs_preserved`.** Pre-existing
+  from the 3.4.2 split: the post-load validation `[[ -z "$BOT_TOKEN"
+  ]]` lacked a `:-` default, so running with `--preserve-state` on
+  a system with no `~/.claudify/telegram/.env` (rare, but possible
+  during testing or partial scrubs) crashed before printing the real
+  "no install to preserve" error message. Now defaults safely.
 - **`claude setup-token` rendering as stacked splash screens during
   install.** ui.sh's `setup_logging` redirects stdout into a `tee` pipe
   for the install log, so claude-code's TUI saw no-TTY-on-stdout and
@@ -71,6 +77,22 @@ fresh Unreleased block goes back on top.
 
 ### Changed
 
+- **Engine abstraction layer extracted** — Claude-Code-specific code
+  moved to `lib/engines/claude-code.sh` implementing an 8-function
+  contract (`engine_install`, `engine_seed_state`,
+  `engine_install_channel_plugin`, `engine_auth_check`,
+  `engine_auth_setup`, `engine_run_args`, `engine_status`,
+  `engine_uninstall`). Engine-agnostic glue stays in `lib/oauth.sh`,
+  `lib/service.sh` etc. and calls the abstract `engine_*` functions
+  only — no `lib/*.sh` outside `lib/engines/` references the `claude`
+  binary. Dispatcher `lib/engine.sh` picks the adapter by
+  `CLAUDIFY_ENGINE` env var (default `claude-code`); future engines
+  plug in by writing one new file under `lib/engines/`. Layout
+  constants (`CLAUDIFY_ROOT`, `CLAUDIFY_WORKSPACE`,
+  `CLAUDIFY_TELEGRAM`, `CREDS_FILE`) moved to a new `lib/layout.sh`
+  since they're engine-agnostic. `lib/claude.sh` deleted. Pure
+  refactor — verified end-to-end on Station11 (clean install,
+  service active, doctor 28/28).
 - **`lib/steps.sh` split into 5 focused modules** to comply with the
   300-line file / 50-line function limits in `CLAUDE.md` rule 1.
   The 615-line catch-all became `onboarding.sh` (intro + Telegram

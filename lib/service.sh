@@ -1,14 +1,17 @@
 # lib/service.sh — systemd user unit + service start + final summary
 #
-# Writes the user-mode systemd unit that runs `claude --channels …`
-# under /usr/bin/script (so claude sees a TTY), enables it, restarts
-# it, and verifies it stays up. Also owns the final-summary banner.
+# Writes the user-mode systemd unit, enables it, restarts it, and
+# verifies it stays up. Also owns the final-summary banner.
+#
+# The ExecStart command line comes from `engine_run_args` (engine
+# adapter — 3.4.3). Today's only adapter is Claude Code, which wraps
+# the run in /usr/bin/script for a real PTY.
 #
 # The unit name is `claude-telegram.service` today. 3.4.5 (multi-
 # instance) renames it to `claudify-<instance>.service` with a
 # migration step. Don't rename here.
 #
-# Constant `CLAUDIFY_WORKSPACE` comes from lib/claude.sh.
+# Constants `CLAUDIFY_WORKSPACE` come from lib/layout.sh.
 #
 # Exposes:
 #   write_service    — write + enable user systemd unit (idempotent)
@@ -23,6 +26,11 @@ write_service() {
   local svc_path="$svc_dir/claude-telegram.service"
   run "mkdir -p '$svc_dir'"
   run "mkdir -p '$CLAUDIFY_WORKSPACE'"
+
+  # Engine decides the ExecStart line — Claude Code wraps in script(1)
+  # for a real PTY; future engines may do something else.
+  local execstart
+  execstart="$(engine_run_args)"
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [DRY] write $svc_path"
@@ -44,7 +52,7 @@ Environment=HOME=%h
 Environment=TERM=xterm-256color
 Environment=TELEGRAM_STATE_DIR=%h/.claudify/telegram
 WorkingDirectory=%h/.claudify/workspace
-ExecStart=/usr/bin/script -qfec "claude --permission-mode bypassPermissions --channels plugin:telegram@claude-plugins-official" /dev/null
+ExecStart=$execstart
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal

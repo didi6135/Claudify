@@ -35,11 +35,13 @@ LIB_DIR="$SCRIPT_DIR/lib"
 #   prompts.sh    — TTY detect + ask family (depends on fail)
 #   validate.sh   — pure validators
 #   preflight.sh  — uses ui + prompts
+#   layout.sh     — claudify on-disk paths (CLAUDIFY_ROOT, _WORKSPACE, _TELEGRAM, CREDS_FILE)
+#   engine.sh     — picks the engine adapter and sources lib/engines/<id>.sh
+#                   into scope (defines all engine_* contract functions)
 #   onboarding.sh — intro, BotFather/userinfobot walkthroughs, collect_inputs
-#   claude.sh     — claudify-layout constants + claude install + plugin + seed + authed?
 #   configs.sh    — bot .env + access.json + workspace persona (CLAUDE.md)
-#   service.sh    — systemd unit write/start + final summary
-#   oauth.sh      — claude setup-token + token capture (uses claude_is_authed)
+#   service.sh    — systemd unit write/start + final summary (uses engine_run_args)
+#   oauth.sh      — interactive OAuth orchestration (uses engine_auth_check, engine_auth_setup)
 # shellcheck source=lib/ui.sh
 source "$LIB_DIR/ui.sh"
 # shellcheck source=lib/args.sh
@@ -50,10 +52,12 @@ source "$LIB_DIR/prompts.sh"
 source "$LIB_DIR/validate.sh"
 # shellcheck source=lib/preflight.sh
 source "$LIB_DIR/preflight.sh"
+# shellcheck source=lib/layout.sh
+source "$LIB_DIR/layout.sh"
+# shellcheck source=lib/engine.sh
+source "$LIB_DIR/engine.sh"
 # shellcheck source=lib/onboarding.sh
 source "$LIB_DIR/onboarding.sh"
-# shellcheck source=lib/claude.sh
-source "$LIB_DIR/claude.sh"
 # shellcheck source=lib/configs.sh
 source "$LIB_DIR/configs.sh"
 # shellcheck source=lib/service.sh
@@ -79,12 +83,12 @@ main() {
 
   collect_inputs           # walks user through BotFather + userinfobot
 
-  install_claude
-  seed_claude_state            # skip theme + trust prompts in the TUI
-  install_telegram_plugin
+  engine_install                                # install the engine binary
+  engine_seed_state "$CLAUDIFY_WORKSPACE"       # skip theme + trust prompts
+  engine_install_channel_plugin telegram        # marketplace + plugin
   write_configs
   write_service
-  seed_persona                 # starter CLAUDE.md (idempotent, preserved)
+  seed_persona                                  # starter CLAUDE.md (preserved)
   oauth_setup
   start_service
 

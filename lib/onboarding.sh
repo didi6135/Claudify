@@ -4,7 +4,7 @@
 # happen, walks the operator through creating a Telegram bot if they
 # don't have one, and collects BOT_TOKEN / TG_USER_ID / WORKSPACE.
 #
-# Constants `CLAUDIFY_TELEGRAM` etc. are defined in lib/claude.sh and
+# Constants `CLAUDIFY_TELEGRAM` etc. are defined in lib/layout.sh and
 # referenced here at call time (not source time), so source order
 # between the two doesn't matter for correctness.
 #
@@ -80,7 +80,7 @@ guide_userinfobot() {
 
 # ─── Resume-from-Ctrl-C state ────────────────────────────────────────────
 # The file lives at the well-known path under $CLAUDIFY_ROOT (defined
-# in lib/claude.sh; resolved at call time). Holds the bot token, so
+# in lib/layout.sh; resolved at call time). Holds the bot token, so
 # chmod 600 from the moment it exists.
 PARTIAL_STATE_FILE_NAME=".install-partial"
 
@@ -212,7 +212,7 @@ _collect_inputs_preserved() {
   WORKSPACE="${WORKSPACE:-claude-bot}"
   export WORKSPACE
 
-  if [[ -z "$BOT_TOKEN" || -z "$TG_USER_ID" ]]; then
+  if [[ -z "${BOT_TOKEN:-}" || -z "${TG_USER_ID:-}" ]]; then
     fail "--preserve-state but no existing config found in $CLAUDIFY_TELEGRAM.
      For a first-time install, omit --preserve-state and run install.sh normally."
   fi

@@ -6,7 +6,7 @@
 # Plus the starter persona file at ~/.claudify/workspace/CLAUDE.md.
 #
 # Constants `CLAUDIFY_TELEGRAM`, `CLAUDIFY_WORKSPACE` come from
-# lib/claude.sh and are resolved at call time.
+# lib/layout.sh and are resolved at call time.
 #
 # Exposes:
 #   write_configs    — bot .env + allowlist (idempotent; --reset-config to overwrite)
