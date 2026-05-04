@@ -13,6 +13,26 @@ fresh Unreleased block goes back on top.
 
 ### Added
 
+- **Manifest files — single source of truth for "what's installed".**
+  Two new JSON files: `~/.claudify/instances.json` (registry, lists
+  every Claudify instance on this machine + each one's engine,
+  service unit, personal command) and `~/.claudify/claudify.json`
+  (per-instance — name, claudify version, engine version, enabled
+  channels, MCPs, skills, hooks). Written at the end of every
+  successful install. New `lib/manifest.sh` module (220 lines)
+  exposes 10 helpers: `manifest_init_registry`,
+  `manifest_register_instance`, `manifest_unregister_instance`,
+  `manifest_list_instances`, `manifest_get_instance`,
+  `manifest_init_instance`, `manifest_set_channel`,
+  `manifest_set_mcp`, `manifest_read_field`,
+  `manifest_atomic_write`. All writes are atomic (write `.tmp` →
+  `mv`). `doctor.sh` validates both files; the install summary now
+  prints their paths. `tests/bash/manifest.bats` covers init /
+  register / re-run idempotency / atomic write. Per-instance path
+  is currently `~/.claudify/claudify.json` (single instance);
+  3.4.5 will move it under `~/.claudify/instances/<name>/` as part
+  of the multi-instance layout migration.
+
 - **Resumable install.** If `install.sh` is interrupted (Ctrl-C,
   network drop, lost SSH session, etc.), each input the operator has
   typed (`BOT_TOKEN`, `TG_USER_ID`, `WORKSPACE`) is persisted

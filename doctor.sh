@@ -46,6 +46,8 @@ CLAUDIFY_WORKSPACE="$CLAUDIFY_ROOT/workspace"
 CLAUDIFY_TELEGRAM="$CLAUDIFY_ROOT/telegram"
 CREDS_FILE="$CLAUDIFY_ROOT/credentials.env"
 SERVICE_UNIT="$HOME/.config/systemd/user/claude-telegram.service"
+REGISTRY_FILE="$CLAUDIFY_ROOT/instances.json"
+INSTANCE_MANIFEST="$CLAUDIFY_ROOT/claudify.json"  # 3.4.5 will move under instances/<name>/
 
 # Systemctl --user needs this in a non-interactive SSH context
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -171,6 +173,36 @@ if [[ -s "$CLAUDIFY_TELEGRAM/access.json" ]]; then
   fi
 else
   check "access.json missing" 1 "Re-run install.sh"
+fi
+
+# ─── Manifests ────────────────────────────────────────────────────────────
+section "Manifests  ($REGISTRY_FILE / $INSTANCE_MANIFEST)"
+if [[ -s "$REGISTRY_FILE" ]]; then
+  if jq -e 'has("instances")' "$REGISTRY_FILE" >/dev/null 2>&1; then
+    n_inst=$(jq '.instances | length' "$REGISTRY_FILE")
+    check "instances.json valid ($n_inst registered instance(s))" 0
+  else
+    check "instances.json missing 'instances' key" 1 \
+      "Re-run install.sh — registry seems corrupt"
+  fi
+else
+  check "instances.json missing" 1 \
+    "Re-run install.sh (registry is written at the end of install)"
+fi
+
+if [[ -s "$INSTANCE_MANIFEST" ]]; then
+  if jq -e 'has("name") and has("engine") and has("channels")' "$INSTANCE_MANIFEST" >/dev/null 2>&1; then
+    iname=$(jq -r '.name' "$INSTANCE_MANIFEST")
+    iengine=$(jq -r '.engine' "$INSTANCE_MANIFEST")
+    n_ch=$(jq '.channels | length' "$INSTANCE_MANIFEST")
+    check "claudify.json valid (name=$iname, engine=$iengine, $n_ch channel(s))" 0
+  else
+    check "claudify.json missing required fields" 1 \
+      "Expected name + engine + channels — re-run install.sh"
+  fi
+else
+  check "claudify.json missing" 1 \
+    "Re-run install.sh (per-instance manifest is written at the end of install)"
 fi
 
 # ─── Claude Code state ────────────────────────────────────────────────────

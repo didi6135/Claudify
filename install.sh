@@ -38,6 +38,7 @@ LIB_DIR="$SCRIPT_DIR/lib"
 #   layout.sh     — claudify on-disk paths (CLAUDIFY_ROOT, _WORKSPACE, _TELEGRAM, CREDS_FILE)
 #   engine.sh     — picks the engine adapter and sources lib/engines/<id>.sh
 #                   into scope (defines all engine_* contract functions)
+#   manifest.sh   — registry + per-instance manifest read/write helpers (uses jq)
 #   onboarding.sh — intro, BotFather/userinfobot walkthroughs, collect_inputs
 #   configs.sh    — bot .env + access.json + workspace persona (CLAUDE.md)
 #   service.sh    — systemd unit write/start + final summary (uses engine_run_args)
@@ -56,6 +57,8 @@ source "$LIB_DIR/preflight.sh"
 source "$LIB_DIR/layout.sh"
 # shellcheck source=lib/engine.sh
 source "$LIB_DIR/engine.sh"
+# shellcheck source=lib/manifest.sh
+source "$LIB_DIR/manifest.sh"
 # shellcheck source=lib/onboarding.sh
 source "$LIB_DIR/onboarding.sh"
 # shellcheck source=lib/configs.sh
@@ -91,6 +94,12 @@ main() {
   seed_persona                                  # starter CLAUDE.md (preserved)
   oauth_setup
   start_service
+
+  # Manifest writes — every entrypoint reads these afterwards.
+  # Today's only instance is "default"; 3.4.5 introduces multi-instance.
+  manifest_register_instance default
+  manifest_init_instance     default
+  manifest_set_channel       default telegram ""
 
   final_summary
 }

@@ -31,6 +31,7 @@ single self-contained `dist/install.sh`.
 | `preflight.sh` | pre-install checks + auto-install of missing deps | `preflight_os`, `preflight_prereqs`, `preflight_linger`, `offer_apt_install`, `install_node` |
 | `layout.sh` | Claudify on-disk paths (engine-agnostic) | `CLAUDIFY_ROOT`, `CLAUDIFY_WORKSPACE`, `CLAUDIFY_TELEGRAM`, `CREDS_FILE` |
 | `engine.sh` | picks the engine adapter, sources `lib/engines/<id>.sh` into scope | `CLAUDIFY_ENGINE`, `engine_id` |
+| `manifest.sh` | registry + per-instance manifest read/write helpers (jq-backed, atomic writes) | `manifest_init_registry`, `manifest_register_instance`, `manifest_unregister_instance`, `manifest_list_instances`, `manifest_get_instance`, `manifest_init_instance`, `manifest_set_channel`, `manifest_set_mcp`, `manifest_read_field`, `manifest_atomic_write` |
 | `onboarding.sh` | welcome banner + Telegram walkthroughs + resumable input collection | `intro`, `guide_botfather`, `guide_userinfobot`, `collect_inputs`, `clear_partial_state` |
 | `configs.sh` | bot `.env` + allowlist + starter persona | `write_configs`, `seed_persona` |
 | `service.sh` | systemd user unit + start + final summary | `write_service`, `start_service`, `final_summary` (uses `engine_run_args`) |

@@ -124,6 +124,10 @@ final_summary() {
   echo "    Stop:     systemctl --user stop claude-telegram"
   echo "    Restart:  systemctl --user restart claude-telegram"
   echo
+  echo "  Manifest files (what's installed):"
+  echo "    Registry:       $CLAUDIFY_ROOT/instances.json"
+  echo "    This instance:  $CLAUDIFY_ROOT/claudify.json"
+  echo
   echo "  Install log: $LOG_FILE"
   echo
 }
