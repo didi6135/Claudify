@@ -21,6 +21,41 @@ This file is the **Claudify-repo contract**, not either of those.
 - **Match the owner's language.** Hebrew when they write Hebrew; English for technical content. Don't switch unilaterally.
 - **Finish what I start before moving on.** No "95% done, moving to next" — either it's done (✅ DONE + date in the phase doc) or I fix it now.
 
+## Architecture — non-negotiable invariants
+
+These come before the code-quality rules. Breaking one of these
+requires opening an ADR + getting explicit owner approval, not just a
+PR review.
+
+1. **Engine-agnostic core.** The codebase must support swapping in a
+   different LLM CLI (Gemini, Codex, local Llama, future engines)
+   without touching anything outside `lib/engines/<id>.sh`. No
+   references to `claude` (the binary), `~/.claude/`, `CLAUDE.md`-as-
+   a-system-prompt-file, Claude-specific tool names like
+   `memory_20250818`, or any other Claude-coupled assumption may
+   appear in `install.sh`, `lib/*.sh` (except inside `lib/engines/`),
+   `src/`, or `tests/`. If a new feature has an engine-specific
+   surface, it lives behind a function in the engine contract; the
+   adapter implements per-engine, the rest of the codebase calls the
+   abstract function. **The substrate (paths, file formats, SQL
+   schemas) is universal; the model-facing surface is per-adapter.**
+2. **Clean uninstall.** `uninstall.sh` must leave the system as if
+   Claudify never ran (modulo what's deliberately preserved per
+   3.1's spec). No daemons that survive uninstall; no env-var
+   pollution; no orphaned PATH entries; no files under `/etc` or
+   `/var`. Every file Claudify writes lives under `~/.claudify/`.
+3. **Substrate independence.** Memory, persona, and conversation
+   data live in plain files + SQLite at known paths under
+   `~/.claudify/`. The operator must always be able to inspect /
+   edit / back up the data with standard tools (`cat`, `sqlite3`,
+   `vi`) — even if every Claudify process is dead. Any wrapper
+   layer (MCP, future skills) is glue, not a gate.
+4. **Single-user trust model.** Claudify is a personal assistant
+   for one operator. We don't build malicious-skill defences, we
+   don't run sandboxed per-skill processes, we don't build
+   permission systems. Skills the operator installs are trusted —
+   isolation is for accident prevention, not adversaries.
+
 ## Code quality — 11 rules
 
 1. **Line limits.** Bash: ≤300 lines per file. Functions: ≤50 lines. TypeScript: ≤300/file, 50/function. When a file crosses, split it.

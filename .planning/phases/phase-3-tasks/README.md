@@ -18,7 +18,9 @@ verify done.
 | 3.4.2.1 | [Resume interrupted install](3.4.2.1-resume-install.md) | ✅ done 2026-05-04 | ~30 min | 3.4.2 | — |
 | 3.4.3 | [Engine abstraction](3.4.3-engine-abstraction.md) | ✅ done 2026-05-04 | ~1.5 hr | 3.4.2 | 3.4.5 |
 | 3.4.4 | [Manifest files](3.4.4-manifest.md) | ✅ done 2026-05-04 | ~1 hr | 3.4.2 | 3.4.5 |
-| 3.4.5 | [Multi-instance layout](3.4.5-multi-instance.md) | ⏳ next | ~1.5 hr | 3.4.3, 3.4.4 | 3.4.6, 3.4.7 |
+| 3.4.5 | [Multi-instance layout](3.4.5-multi-instance.md) | ⏳ next | ~1.5 hr | 3.4.3, 3.4.4 | 3.4.5.1, 3.4.6, 3.4.7 |
+| 3.4.5.1 | [Skill data dir + lib/memory.sh](3.4.5.1-skill-data-dir.md) | ⏳ pending | ~45 min | 3.4.5 | 3.4.5.2, Phase 4 |
+| 3.4.5.2 | [Engine contract: memory_setup + apply_persona](3.4.5.2-engine-memory-contract.md) | ⏳ pending | ~30 min | 3.4.3 | Phase 4 (memory) |
 | 3.4.6 | [Personal command wrapper](3.4.6-personal-cmd.md) | ⏳ pending | ~45 min | 3.4.5 | 3.4.8 |
 | 3.4.7 | [Migration logic](3.4.7-migration.md) | ⏳ pending | ~30 min | 3.4.5 | 3.4.8 |
 | 3.4.8 | [Docs sync after refactor](3.4.8-docs-sync.md) | ⏳ pending | ~30 min | 3.4.6, 3.4.7 | 3.5 |
