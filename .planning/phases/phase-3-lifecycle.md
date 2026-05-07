@@ -195,28 +195,37 @@ can be dropped onto a fresh server to rehydrate the bot.
 - [ ] First piece of TypeScript code in production use; sets the
       pattern for future TS modules
 
-### 3.6 — Security hardening pass (~1–2 hrs)
+### 3.6 — Security hardening pass (~2.75 hrs)
 
-**Goal:** verify the security model in `docs/architecture.md §11` is
-actually true in code; fix any gaps.
+**Goal:** Two arms — systemd unit hardening (the biggest mechanical
+gap — current `systemd-analyze` exposure score is ~9.6, we want
+≤3.0), plus a code-level audit verifying that every claim in
+`docs/architecture.md §11` is true. Closes Phase 3 by making the
+unit that runs the bot match the security story we tell.
 
-**Scope:**
-- Audit every `chmod` call — `credentials.env`, `*.env`, `oauth.json`
-  all 600
-- Audit `Environment=` vs `EnvironmentFile=` in systemd units —
-  no secrets in `Environment=`
-- Audit every `command output` capture for token leakage; ensure all
-  use sed-redact
-- Audit input validation paths — every operator input has a
-  validator + blocklist where relevant
-- Add the threat-model + operator-action checklist to README in a
-  "Security" section that links to `architecture.md §11`
+**Source of truth:** [`.planning/research/security.md`](../research/security.md)
+— threat model, current state assessment, all 10 audit items, the
+hardening plan with directive-by-directive rationale.
 
-**Acceptance:**
+**Sub-tasks** (each commits separately, each gets a Station11
+round-trip):
+
+| # | Task | Effort | Lands |
+|---|---|---|---|
+| 3.6.1 | [Tier-1 hardening (always-safe)](phase-3-tasks/3.6.1-tier1-hardening.md) | 30 min | NoNewPrivileges, PrivateTmp, Protect{Kernel*,Clock,Hostname,ControlGroups}, RestrictNamespaces, RestrictSUIDSGID, LockPersonality, RestrictRealtime + MemoryMax/TasksMax/LimitNPROC. Score 9.6 → ~5.0. |
+| 3.6.2 | [Filesystem write-restriction](phase-3-tasks/3.6.2-fs-write-restriction.md) | 45 min | ProtectHome=read-only + ReadWritePaths=%h/.claudify %h/.claude %h/.npm-global %h/.bun. Score ~5.0 → ~3.0. |
+| 3.6.3 | [Address families + syscall filter](phase-3-tasks/3.6.3-syscall-and-network.md) | 30 min | RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 + SystemCallFilter=@system-service. Score ~3.0 → ~2.0. |
+| 3.6.4 | [Tighten file permissions](phase-3-tasks/3.6.4-file-permissions.md) | 15 min | access.json → 600, install log → 600. |
+| 3.6.5 | [doctor.sh security section](phase-3-tasks/3.6.5-doctor-security-section.md) | 30 min | Drift detection: hardening directives present, file perms, no tokens in ps. |
+| 3.6.6 | [Security documentation](phase-3-tasks/3.6.6-security-docs.md) | 15 min | README "Security" section + architecture.md §11 status flip + bypassPermissions comment in engine adapter. |
+
+**Acceptance (whole umbrella):**
+- [ ] `systemd-analyze --user security` ≤ 3.0
+- [ ] All sub-task acceptance criteria met
 - [ ] No secrets in any `ps aux` output during install or runtime
-- [ ] `chmod` audit produces no surprises
 - [ ] README has a Security section users can read
-- [ ] CHANGELOG documents the audit and any tightening done
+- [ ] `docs/architecture.md §11` updated to reflect what 3.6 closed
+- [ ] CHANGELOG `### Security` entries for each sub-task
 
 ### 3.7 — Update README + ROADMAP + status docs
 
